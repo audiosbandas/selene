@@ -2,7 +2,7 @@
 tables desborda
 </br></br></br>
 
-b
+c
 
 </br></br></br>
 
@@ -28,18 +28,19 @@ b
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
             display: none; 
-            table-layout: auto; /* Permite que las columnas se reduzcan según su contenido */
+            table-layout: auto; 
         }
         
         th, td { 
             font-size: 1.1rem;    /* Texto más grande */
-            padding: 10px 4px;    /* Relleno lateral mínimo (4px) para ajustar columnas al límite */
-            text-align: center;   /* Alineación centrada para optimizar lectura corta como "VIII" */
+            padding: 10px 4px;    /* Relleno lateral mínimo para ajustar columnas al límite */
+            text-align: center;   /* Alineación centrada */
             border-bottom: 1px solid #e2e8f0; 
             white-space: nowrap;  /* Mantiene los datos en una sola línea */
-            overflow: hidden;     /* Evita que el texto desborde a otras columnas */
-            text-overflow: ellipsis; /* Agrega '...' si un texto supera el espacio disponible */
-            min-width: 0;         /* Permite que la columna se reduzca al mínimo indispensable */
+            overflow: visible;    /* Permite el desbordamiento visual del contenido fuera de la celda */
+            text-overflow: clip;  /* Muestra el texto completo desbordado sin recortarlo ni agregar '...' */
+            position: relative;   /* Garantiza un correcto orden de apilamiento para el texto desbordado */
+            min-width: 0; 
         }
         
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
@@ -131,5 +132,6 @@ b
 
 </body>
 </html>
+
 
 
