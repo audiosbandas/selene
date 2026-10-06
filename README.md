@@ -5,12 +5,23 @@
 https://audiosbandas.github.io/selene/
 
 
-
+<details open>
+  <summary>ESTRIBILLO (Parte B)</summary>
+  <p>
 
 
   A | b   |   a |   c |   c   | c
 --- | --- | --- | --- | ---   | ---
 Aaa | ddg | gg  | a   | bgggg | bh
+
+
+</p>
+</details>
+
+
+<details open>
+  <summary>ESTRIBILLO (Parte B)</summary>
+  <p>
 
 
 ESTRIBILLO (Parte B)
@@ -21,6 +32,26 @@ Aaa | ddg | gg  | a   | bgggg | bh
 Aaa | ddg | gg  | a   | bgggg | bh
 Aaa | ddg | gg  | a   | bgggg | bh
 Aaa | ddg | gg  | a   | bgggg | bh
+
+
+</p>
+</details>
+
+
+
+<details open>
+  <summary>ESTRIBILLO (Parte B)</summary>
+  <p>
+
+ 
+
+
+
+
+
+</p>
+</details>
+
 
 
 ESTRIBILLO (Parte B)
