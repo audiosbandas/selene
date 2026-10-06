@@ -2,7 +2,8 @@
 https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv
 
 </br></br></br>
-
+a
+</br></br></br>
 
 
 
@@ -12,7 +13,7 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla Dinámica - Modo Publicado</title>
+    <title>Tabla Dinámica - Modo Publicado Estable</title>
     <style>
         body { font-family: sans-serif; margin: 30px; background-color: #f8fafc; color: #1e293b; }
         h2 { color: #0f172a; }
@@ -27,7 +28,7 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh
 <body>
 
     <h2>Mis Datos en Tiempo Real</h2>
-    <div id="mensaje-estado">Cargando información desde la publicación de Google...</div>
+    <div id="mensaje-estado">Conectando y procesando filas de la planilla...</div>
     
     <table id="tabla-dinamica">
         <thead></thead>
@@ -36,20 +37,20 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh
 
     <script>
         // ========================================================
-        // 🛠️ CONFIGURACIÓN: PEGA AQUÍ EL ENLACE DE "PUBLICAR EN LA WEB"
+        // 🛠️ CONFIGURACIÓN: PEGA AQUÍ TU ENLACE DE "PUBLICAR EN LA WEB"
         // ========================================================
-        const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
+        const URL_PUBLICADA = https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
             try {
                 const respuesta = await fetch(URL_PUBLICADA);
-                if (!respuesta.ok) throw new Error("No se pudo obtener el archivo publicado.");
+                if (!respuesta.ok) throw new Error("No se pudo obtener el archivo publicado de Google.");
                 
                 const datosTexto = await respuesta.text();
 
-                // Separar por saltos de línea de manera segura
-                const lineas = datosTexto.split(\(/\r\)?\n/);
+                // Separación simple y segura por saltos de línea estándar
+                const lineas = datosTexto.replace(\(/\r/\)g, "").split("\n");
                 
                 const tablaHead = document.querySelector("#tabla-dinamica thead");
                 const tablaBody = document.querySelector("#tabla-dinamica tbody");
@@ -61,12 +62,12 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh
 
                 for (let i = 0; i < lineas.length; i++) {
                     let filaTexto = lineas[i].trim();
-                    if (!filaTexto) continue; // Saltar filas vacías
+                    if (!filaTexto) continue; // Ignorar líneas en blanco
 
-                    // Separar columnas por comas básicas
+                    // Separar columnas por comas limpias
                     let columnas = filaTexto.split(",");
                     
-                    // Limpiar comillas automáticas
+                    // Limpiar las comillas dobles que rodeen a los textos
                     columnas = columnas.map(celda => {
                         let limpia = celda.trim();
                         if (limpia.startsWith('"') && limpia.endsWith('"')) {
@@ -75,32 +76,41 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh
                         return limpia;
                     });
 
+                    // Construir cabecera (Fila 0)
                     if (!encabezadosCreados) {
                         let htmlHead = "<tr>";
-                        columnas.forEach(col => htmlHead += `<th>${col}</th>`);
+                        columnas.forEach(col => {
+                            htmlHead += `<th>${col}</th>`;
+                        });
                         htmlHead += "</tr>";
                         tablaHead.innerHTML = htmlHead;
                         encabezadosCreados = true;
                     } else {
+                        // Construir el resto de filas de datos
                         let htmlFila = "<tr>";
-                        columnas.forEach(col => htmlFila += `<td>${col}</td>`);
+                        columnas.forEach(col => {
+                            htmlFila += `<td>${col}</td>`;
+                        });
                         htmlFila += "</tr>";
                         tablaBody.innerHTML += htmlFila;
                     }
                 }
 
+                // Ocultar cargando y activar visualización de la tabla
                 estado.style.display = "none";
                 document.getElementById("tabla-dinamica").style.display = "table";
 
             } catch (error) {
-                console.error(error);
+                console.error("Detalle del error:", error);
                 estado.classList.add("error");
-                estado.innerText = "Error: El navegador sigue bloqueando la petición. Intenta subiendo el archivo a internet o usando un servidor local.";
+                estado.innerText = "Error al procesar: " + error.message;
             }
         }
 
+        // Ejecutar inmediatamente
         cargarTabla();
     </script>
 
 </body>
 </html>
+
