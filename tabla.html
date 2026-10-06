@@ -1,0 +1,87 @@
+
+https://docs.google.com/spreadsheets/d/1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw/edit
+
+</br></br></br>
+
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabla Dinámica desde Google Sheets</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; font-family: sans-serif; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+
+    <h2>Datos en Tiempo Real</h2>
+    
+    <!-- Contenedor donde se generará la tabla -->
+    <table id="tabla-dinamica">
+        <thead><!-- Los encabezados se crean con JS --></thead>
+        <tbody><!-- Las filas se crean con JS --></tbody>
+    </table>
+
+    <script>
+        // ⚠️ REEMPLAZA ESTE ID POR EL DE TU PLANILLA
+        const SHEET_ID = '1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw';
+        const SHEET_TITLE = 'Hoja 1'; // Nombre exacto de la pestaña (opcional)
+        
+        // URL para exportar la hoja directamente en formato CSV
+        const url = `https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TITLE)}`;
+
+        async function cargarTabla() {
+            try {
+                const respuesta = await fetch(url);
+                const datosTexto = await respuesta.text();
+                
+                // Convertir las líneas del CSV en arrays
+                const filas = datosTexto.split('\n').map(fila => {
+                    // Limpiar comillas dobles comunes que agrega Google Sheets
+                    return fila.split(',').map(celda => celda.replace(/^"(.*)"\$/, '\$1'));
+                });
+
+                const tablaHead = document.querySelector("#tabla-dinamica thead");
+                const tablaBody = document.querySelector("#tabla-dinamica tbody");
+                
+                // Limpiar contenido previo si lo hubiera
+                tablaHead.innerHTML = "";
+                tablaBody.innerHTML = "";
+
+                // 1. Crear los encabezados (primera fila del CSV)
+                const encabezados = filas[0];
+                let htmlHead = "<tr>";
+                encabezados.forEach(columna => {
+                    htmlHead += `<th>${columna}</th>`;
+                });
+                htmlHead += "</tr>";
+                tablaHead.innerHTML = htmlHead;
+
+                // 2. Crear las filas de datos
+                for (let i = 1; i < filas.length; i++) {
+                    if (filas[i].length === 1 && filas[i][0] === "") continue; // Saltar filas vacías
+                    
+                    let htmlFila = "<tr>";
+                    filas[i].forEach(celda => {
+                        htmlFila += `<td>${celda}</td>`;
+                    });
+                    htmlFila += "</tr>";
+                    tablaBody.innerHTML += htmlFila;
+                }
+
+            } catch (error) {
+                console.error("Error al obtener los datos de la planilla:", error);
+            }
+        }
+
+        // Ejecutar la función al cargar la página
+        cargarTabla();
+    </script>
+
+</body>
+</html>
