@@ -2,7 +2,7 @@
 tables desborda
 </br></br></br>
 
-b
+a
 
 </br></br></br>
 
@@ -28,19 +28,21 @@ b
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
             display: none; 
-            table-layout: auto; 
+            table-layout: fixed; /* Forzar estructura estricta e idéntica en todas las columnas */
         }
         
         th, td { 
             font-size: 1.1rem;    /* Texto más grande */
-            padding: 10px 4px;    /* Relleno lateral mínimo */
+            padding: 10px 2px;    /* Relleno lateral ultra compacto */
             text-align: center;   /* Alineación centrada */
             border-bottom: 1px solid #e2e8f0; 
             white-space: nowrap;  /* Mantiene los datos en una sola línea */
             overflow: visible;    /* Permite el desbordamiento visual del contenido */
             text-overflow: clip;  /* Muestra el texto desbordado sin cortar */
             position: relative;   
-            min-width: 45px;      /* Ancho mínimo justo e igual para todas las columnas basado en "VIII" */
+            width: 45px;          /* Fijación estricta de ancho exacto para "VIII" */
+            min-width: 45px; 
+            max-width: 45px;
         }
         
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
@@ -132,6 +134,7 @@ b
 
 </body>
 </html>
+
 
 
 
