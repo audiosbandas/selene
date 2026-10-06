@@ -18,3 +18,101 @@ prueba.html
     padding: 15px; 
   }
 </style>
+
+
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estructura de Columnas con Flexbox y Tablas</title>
+    <style>
+        /* Contenedor principal que activa Flexbox */
+        .contenedor { 
+            display: flex; 
+            gap: 20px; /* Espacio de separación entre columnas */ 
+        } 
+        
+        /* Estilo para cada columna individual */
+        .columna { 
+            flex: 1; /* Hace que todas las columnas ocupen el mismo ancho */ 
+            background-color: #f0f0f0; 
+            padding: 15px; 
+            border-radius: 5px;
+        }
+
+        /* Estilos para las tablas de 5x5 */
+        table {
+            width: 100%; /* Hace que la tabla ocupe todo el ancho de la columna */
+            border-collapse: collapse; /* Une los bordes de las celdas */
+            margin-top: 10px;
+            background-color: #ffffff;
+        }
+
+        th, td {
+            border: 1px solid #cccccc; /* Borde gris para las celdas */
+            padding: 8px; /* Espacio interno en cada celda */
+            text-align: center; /* Centra el texto de la tabla */
+        }
+
+        th {
+            background-color: #e0e0e0; /* Color de fondo para el encabezado */
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Estructura de contenedores en HTML -->
+    <div class="contenedor">
+        
+        <!-- COLUMNA 1 -->
+        <div class="columna">
+            <h3>Columna 1</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Enc. 1</th>
+                        <th>Enc. 2</th>
+                        <th>Enc. 3</th>
+                        <th>Enc. 4</th>
+                        <th>Enc. 5</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td></tr>
+                    <tr><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td></tr>
+                    <tr><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td></tr>
+                    <tr><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- COLUMNA 2 -->
+        <div class="columna">
+            <h3>Columna 2</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Enc. A</th>
+                        <th>Enc. B</th>
+                        <th>Enc. C</th>
+                        <th>Enc. D</th>
+                        <th>Enc. E</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td></tr>
+                    <tr><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td></tr>
+                    <tr><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td></tr>
+                    <tr><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td><td>Dato</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</body>
+</html>
+
