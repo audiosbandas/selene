@@ -1,6 +1,16 @@
 
 https://docs.google.com/spreadsheets/d/1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw/edit
 
+
+https://docs.google.com/spreadsheets/d/1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw/edit?usp=drivesdk
+
+
+1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw
+
+</br></br></br>
+
+gid=1726751477
+
 </br></br></br>
 
 
@@ -10,50 +20,51 @@ https://docs.google.com/spreadsheets/d/1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTH
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla Dinámica desde Google Sheets</title>
+    <title>Tabla Dinámica Inmune a Cambios de Nombre</title>
     <style>
-        table { border-collapse: collapse; width: 100%; font-family: sans-serif; }
+        table { border-collapse: collapse; width: 100%; font-family: sans-serif; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
     </style>
 </head>
 <body>
 
-    <h2>Datos en Tiempo Real</h2>
+    <h2>Datos desde GID Fijo</h2>
     
-    <!-- Contenedor donde se generará la tabla -->
     <table id="tabla-dinamica">
-        <thead><!-- Los encabezados se crean con JS --></thead>
-        <tbody><!-- Las filas se crean con JS --></tbody>
+        <thead></thead>
+        <tbody></tbody>
     </table>
 
     <script>
-        // ⚠️ REEMPLAZA ESTE ID POR EL DE TU PLANILLA
+        // 1. REEMPLAZA EL ID DE TU PLANILLA
         const SHEET_ID = '1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw';
-        const SHEET_TITLE = 'Hoja 1'; // Nombre exacto de la pestaña (opcional)
         
-        // URL para exportar la hoja directamente en formato CSV
-        const url = `https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TITLE)}`;
+        // 2. REEMPLAZA POR EL NÚMERO DE GID DE TU PESTAÑA (Ej: 14859632)
+        const SHEET_GID = '1726751477'; 
+        
+        // Estructura de URL alternativa que acepta el parámetro gid para exportación directa
+        const url = `https://google.com{SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 
         async function cargarTabla() {
             try {
                 const respuesta = await fetch(url);
+                if (!respuesta.ok) throw new Error("No se pudo conectar con Google Sheets");
+                
                 const datosTexto = await respuesta.text();
                 
-                // Convertir las líneas del CSV en arrays
+                // Dividir el texto en filas y limpiar comillas automáticas de Google
                 const filas = datosTexto.split('\n').map(fila => {
-                    // Limpiar comillas dobles comunes que agrega Google Sheets
-                    return fila.split(',').map(celda => celda.replace(/^"(.*)"\$/, '\$1'));
+                    return fila.split(',').map(celda => celda.replace(/^"(.*)"\$/, '\$1').trim());
                 });
 
                 const tablaHead = document.querySelector("#tabla-dinamica thead");
                 const tablaBody = document.querySelector("#tabla-dinamica tbody");
                 
-                // Limpiar contenido previo si lo hubiera
                 tablaHead.innerHTML = "";
                 tablaBody.innerHTML = "";
 
-                // 1. Crear los encabezados (primera fila del CSV)
+                // Crear los encabezados (Fila 0)
                 const encabezados = filas[0];
                 let htmlHead = "<tr>";
                 encabezados.forEach(columna => {
@@ -62,9 +73,9 @@ https://docs.google.com/spreadsheets/d/1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTH
                 htmlHead += "</tr>";
                 tablaHead.innerHTML = htmlHead;
 
-                // 2. Crear las filas de datos
+                // Crear las filas de datos
                 for (let i = 1; i < filas.length; i++) {
-                    if (filas[i].length === 1 && filas[i][0] === "") continue; // Saltar filas vacías
+                    if (filas[i].length === 1 && filas[i][0] === "") continue; 
                     
                     let htmlFila = "<tr>";
                     filas[i].forEach(celda => {
@@ -75,11 +86,10 @@ https://docs.google.com/spreadsheets/d/1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTH
                 }
 
             } catch (error) {
-                console.error("Error al obtener los datos de la planilla:", error);
+                console.error("Error al obtener los datos:", error);
             }
         }
 
-        // Ejecutar la función al cargar la página
         cargarTabla();
     </script>
 
