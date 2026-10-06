@@ -2,9 +2,10 @@
 tables desborda
 </br></br></br>
 
-b
+c
 
 </br></br></br>
+
 
 
 
@@ -20,15 +21,16 @@ b
         #mensaje-estado { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; background-color: #e2e8f0; }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
         
-        /* Contenedor que aplicará el escalado visual */
+        /* Contenedor que aplicará el zoom dinámico */
         #contenedor-escalado {
-            transform-origin: top left; /* Escala tomando la esquina superior izquierda como eje */
-            width: fit-content;
+            display: inline-block;
+            width: max-content;
+            transform-origin: 0 0;
         }
 
         table { 
             border-collapse: collapse; 
-            width: max-content; /* Permite calcular el ancho real acumulado de todas las columnas de 28px */
+            width: max-content; 
             background: #ffffff; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
@@ -45,7 +47,7 @@ b
             overflow: visible;    
             text-overflow: clip;  
             position: relative;   
-            width: 28px;          /* Ancho previo intacto */
+            width: 28px;          /* Ancho fijo de 28px por columna */
             min-width: 28px; 
             max-width: 28px;
         }
@@ -75,24 +77,29 @@ b
     <script>
         const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
 
-        // Función para ajustar el zoom automáticamente según el ancho de la ventana
+        // Función para ajustar el zoom automáticamente según el ancho de la pantalla
         function ajustarZoomTabla() {
             const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
             
-            if (tabla.offsetWidth === 0) return; // Si la tabla está oculta, no calcula
+            if (tabla.offsetWidth === 0) return;
 
-            const anchoDisponible = window.innerWidth - 30; // Margen de pantalla (margin: 15px)
+            // Ancho disponible restando márgenes del body
+            const anchoDisponible = document.body.clientWidth;
             const anchoRealTabla = tabla.offsetWidth;
 
-            // Calcula la escala matemática para encajar perfecto en la pantalla
+            if (anchoRealTabla === 0) return;
+
+            // Factor de escala exacto
             const escala = anchoDisponible / anchoRealTabla;
 
-            // Aplica la escala calculada
-            contenedor.style.transform = `scale(${escala})`;
-            
-            // Ajusta la altura del contenedor escalado para evitar despasamientos verticales
-            contenedor.style.height = `${tabla.offsetHeight * escala}px`;
+            // Implementación híbrida para compatibilidad universal de navegadores
+            if ('zoom' in contenedor.style) {
+                contenedor.style.zoom = escala;
+            } else {
+                contenedor.style.transform = `scale(${escala})`;
+                contenedor.style.width = `${anchoRealTabla}px`;
+            }
         }
 
         async function cargarTabla() {
@@ -155,8 +162,10 @@ b
                 estado.style.display = "none";
                 document.getElementById("tabla-dinamica").style.display = "table";
 
-                // Ejecutar zoom dinámico una vez cargada la tabla
-                ajustarZoomTabla();
+                // Forzar un pequeño retardo para asegurar que el DOM dibujó la tabla antes de medir su ancho
+                requestAnimationFrame(() => {
+                    ajustarZoomTabla();
+                });
 
             } catch (error) {
                 console.error("Detalle:", error);
@@ -173,6 +182,8 @@ b
 
 </body>
 </html>
+
+
 
 
 
