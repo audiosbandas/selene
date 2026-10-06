@@ -1,4 +1,7 @@
+(Hoja 1) CSV=
+https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv
 
+</br></br></br>
 
 
 
@@ -35,7 +38,7 @@
         // ========================================================
         // 🛠️ CONFIGURACIÓN: PEGA AQUÍ EL ENLACE DE "PUBLICAR EN LA WEB"
         // ========================================================
-        const URL_PUBLICADA = 'AQUÍ_PEGA_EL_ENLACE_DE_GOOGLE_QUE_TERMINA_EN_CSV';
+        const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
