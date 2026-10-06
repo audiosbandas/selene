@@ -2,7 +2,7 @@
 tables desborda
 </br></br></br>
 
-a
+b
 
 </br></br></br>
 
@@ -15,7 +15,7 @@ a
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tabla Dinámica - Google Sheets</title>
     <style>
-        body { font-family: sans-serif; margin: 15px; background-color: #f8fafc; color: #1e293b; }
+        body { font-family: sans-serif; margin: 15px; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
         h2 { color: #0f172a; }
         #mensaje-estado { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; background-color: #e2e8f0; }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
@@ -28,7 +28,7 @@ a
 
         table { 
             border-collapse: collapse; 
-            width: 100%; 
+            width: max-content; /* Permite calcular el ancho real acumulado de todas las columnas de 28px */
             background: #ffffff; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
@@ -85,11 +85,14 @@ a
             const anchoDisponible = window.innerWidth - 30; // Margen de pantalla (margin: 15px)
             const anchoRealTabla = tabla.offsetWidth;
 
-            // Calcula la escala matemática para encajar perfecto
+            // Calcula la escala matemática para encajar perfecto en la pantalla
             const escala = anchoDisponible / anchoRealTabla;
 
             // Aplica la escala calculada
             contenedor.style.transform = `scale(${escala})`;
+            
+            // Ajusta la altura del contenedor escalado para evitar despasamientos verticales
+            contenedor.style.height = `${tabla.offsetHeight * escala}px`;
         }
 
         async function cargarTabla() {
@@ -170,6 +173,7 @@ a
 
 </body>
 </html>
+
 
 
 
