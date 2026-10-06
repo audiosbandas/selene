@@ -80,6 +80,13 @@ Aaa | ddg | gg  | a   |  |  |Aaa | ddg | gg  | a   | bgggg | bh
 
 
 
+<div class="contenedor">
+  <div class="columna">Columna 1</div>
+  <div class="columna">Columna 2</div>
+</div>
+
+
+
 
 
 
