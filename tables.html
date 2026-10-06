@@ -2,7 +2,7 @@
 tables desborda
 </br></br></br>
 
-c
+a
 
 </br></br></br>
 
@@ -24,12 +24,12 @@ c
         /* Modificaciones en la tabla para soportar desbordamiento */
         table { 
             border-collapse: collapse; 
-            width: 100%; 
+            min-width: 100%; /* Cambiado de width: 100% a min-width: 100% */
             background: #ffffff; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
             display: none; 
-            table-layout: fixed; /* Mantiene un ancho de columna fijo */
+            /* Se eliminó table-layout: fixed para permitir flexibilidad */
         }
         
         th, td { 
@@ -141,3 +141,4 @@ c
 
 </body>
 </html>
+
