@@ -17,7 +17,7 @@
             font-family: sans-serif; 
             margin: 0; 
             padding: 15px;
-            padding-top: 65px; /* Espacio superior para dar lugar a los botones flotantes */
+            padding-top: 65px; /* Espacio superior reservado para la barra flotante */
             background-color: #f8fafc; 
             color: #1e293b; 
             overflow-x: hidden; 
@@ -26,32 +26,34 @@
 
         h2 { color: #0f172a; margin: 0 0 15px 0; }
         
-        /* Controles de Navegación FLOTANTES */
+        /* CONTROLES FLOTANTES: Fijos en pantalla y desacoplados del Zoom */
         .controles-paginado-flotantes {
             position: fixed;
             top: 10px;
             right: 15px;
-            z-index: 1000;
+            z-index: 9999; /* Asegura quedar por encima de todo */
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             background-color: rgba(255, 255, 255, 0.95);
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            backdrop-filter: blur(4px);
-            border: 1px solid #e2e8f0;
+            backdrop-filter: blur(6px);
+            border: 1px solid #cbd5e1;
+            max-width: calc(100vw - 30px); /* Evita que desborde de la pantalla */
         }
 
         .btn-nav {
             background-color: #2563eb;
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 6px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
+            white-space: nowrap;
             transition: background-color 0.2s ease, opacity 0.2s ease;
         }
 
@@ -69,9 +71,10 @@
         .indicador-bloque {
             font-weight: bold;
             color: #475569;
-            font-size: 0.95rem;
-            min-width: 85px;
+            font-size: 0.85rem;
+            min-width: 80px;
             text-align: center;
+            white-space: nowrap;
         }
 
         #mensaje-estado { 
@@ -133,7 +136,7 @@
 </head>
 <body>
 
-    <!-- Botones de Paginado Flotantes -->
+    <!-- Botones de Paginado Flotantes Permanentes (Independientes del Zoom) -->
     <div class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
@@ -155,7 +158,7 @@
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        // 1: Iniciar por defecto en el bloque derecho (Cols 18 en adelante)
+        // 1: Iniciar por defecto en la página derecha (Cols 18 en adelante)
         let bloqueActual = 1; 
         const LIMITE_PRIMER_BLOQUE = 17; // Cantidad de columnas del primer bloque
 
@@ -218,7 +221,7 @@
             // Calcular la escala para que el bloque activo ocupe el 100% del ancho de pantalla
             const escala = anchoDisponible / anchoObjetivo;
 
-            // Aplicar Zoom y Desplazamiento
+            // Aplicar Zoom y Desplazamiento únicamente al contenedor de la tabla
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
                 tabla.style.transform = `translateX(${desplazamientoX}px)`;
