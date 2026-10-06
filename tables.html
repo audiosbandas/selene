@@ -2,10 +2,9 @@
 tables desborda
 </br></br></br>
 
-c
+a
 
 </br></br></br>
-
 
 
 
@@ -21,6 +20,12 @@ c
         #mensaje-estado { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; background-color: #e2e8f0; }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
         
+        /* Contenedor que aplicará el escalado visual */
+        #contenedor-escalado {
+            transform-origin: top left; /* Escala tomando la esquina superior izquierda como eje */
+            width: fit-content;
+        }
+
         table { 
             border-collapse: collapse; 
             width: 100%; 
@@ -32,20 +37,19 @@ c
         }
         
         th, td { 
-            font-size: 1.1rem;    /* Tamaño de letra solicitado */
-            padding: 10px 0px;    /* Cero relleno lateral para apretar al máximo */
-            text-align: center;   /* Alineación centrada */
+            font-size: 1.1rem;    
+            padding: 10px 0px;    
+            text-align: center;   
             border-bottom: 1px solid #e2e8f0; 
-            white-space: nowrap;  /* Todo en una línea */
-            overflow: visible;    /* Desbordamiento permitido por defecto */
+            white-space: nowrap;  
+            overflow: visible;    
             text-overflow: clip;  
             position: relative;   
-            width: 28px;          /* Mínimo exacto en píxeles para mostrar "VIII" sin recortes */
+            width: 28px;          /* Ancho previo intacto */
             min-width: 28px; 
             max-width: 28px;
         }
 
-        /* Regla específica para evitar que la última columna desborde hacia afuera */
         th:last-child, td:last-child {
             overflow: hidden;
             text-overflow: ellipsis;
@@ -60,13 +64,33 @@ c
     <h2>Mis Datos en Tiempo Real</h2>
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
-    <table id="tabla-dinamica">
-        <thead></thead>
-        <tbody></tbody>
-    </table>
+    <!-- Envoltorio para calcular y aplicar el zoom dinámico -->
+    <div id="contenedor-escalado">
+        <table id="tabla-dinamica">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+    </div>
 
     <script>
         const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
+
+        // Función para ajustar el zoom automáticamente según el ancho de la ventana
+        function ajustarZoomTabla() {
+            const contenedor = document.getElementById("contenedor-escalado");
+            const tabla = document.getElementById("tabla-dinamica");
+            
+            if (tabla.offsetWidth === 0) return; // Si la tabla está oculta, no calcula
+
+            const anchoDisponible = window.innerWidth - 30; // Margen de pantalla (margin: 15px)
+            const anchoRealTabla = tabla.offsetWidth;
+
+            // Calcula la escala matemática para encajar perfecto
+            const escala = anchoDisponible / anchoRealTabla;
+
+            // Aplica la escala calculada
+            contenedor.style.transform = `scale(${escala})`;
+        }
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
@@ -128,6 +152,9 @@ c
                 estado.style.display = "none";
                 document.getElementById("tabla-dinamica").style.display = "table";
 
+                // Ejecutar zoom dinámico una vez cargada la tabla
+                ajustarZoomTabla();
+
             } catch (error) {
                 console.error("Detalle:", error);
                 estado.classList.add("error");
@@ -135,11 +162,15 @@ c
             }
         }
 
+        // Reajustar zoom automáticamente si se cambia el tamaño de la ventana
+        window.addEventListener("resize", ajustarZoomTabla);
+
         cargarTabla();
     </script>
 
 </body>
 </html>
+
 
 
 
