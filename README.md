@@ -81,6 +81,10 @@ Aaa | ddg | gg  | a   |  |  |Aaa | ddg | gg  | a   | bgggg | bh
 
 
 
+<html>
+<head>
+
+
 .contenedor {
   display: flex; /* Coloca los elementos uno al lado del otro */
   gap: 20px;     /* Espacio de separación entre columnas */
@@ -92,8 +96,10 @@ Aaa | ddg | gg  | a   |  |  |Aaa | ddg | gg  | a   | bgggg | bh
   padding: 15px;
 }
 
+</head>
 
 
+<body>
 
 <div class="contenedor">
   <div class="columna">Columna 1</div>
@@ -101,7 +107,8 @@ Aaa | ddg | gg  | a   |  |  |Aaa | ddg | gg  | a   | bgggg | bh
 </div>
 
 
-
+</body>
+</html>
 
 
 
