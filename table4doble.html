@@ -13,35 +13,39 @@
             box-sizing: border-box;
         }
 
-        body { 
-            font-family: sans-serif; 
-            margin: 0; 
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-family: sans-serif;
+        }
+
+        body {
             padding: 15px;
-            padding-top: 65px; /* Espacio superior reservado para la barra flotante */
-            background-color: #f8fafc; 
-            color: #1e293b; 
-            overflow-x: hidden; 
-            width: 100vw;
+            padding-top: 65px; /* Espacio para que el contenido no quede oculto tras la barra flotante */
+            overflow-x: hidden;
         }
 
         h2 { color: #0f172a; margin: 0 0 15px 0; }
-        
-        /* CONTROLES FLOTANTES: Fijos en pantalla y desacoplados del Zoom */
+
+        /* BARRA FLOTANTE PERMANENTE E INDEPENDIENTE DEL ZOOM */
         .controles-paginado-flotantes {
-            position: fixed;
-            top: 10px;
-            right: 15px;
-            z-index: 9999; /* Asegura quedar por encima de todo */
+            position: fixed !important;
+            top: 12px !important;
+            right: 12px !important;
+            z-index: 999999 !important;
             display: flex;
             align-items: center;
             gap: 8px;
-            background-color: rgba(255, 255, 255, 0.95);
-            padding: 6px 10px;
+            background-color: #ffffff;
+            padding: 6px 12px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            backdrop-filter: blur(6px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
             border: 1px solid #cbd5e1;
-            max-width: calc(100vw - 30px); /* Evita que desborde de la pantalla */
+            transform: none !important; /* Previene cualquier conflicto de escala */
         }
 
         .btn-nav {
@@ -54,7 +58,7 @@
             font-weight: bold;
             cursor: pointer;
             white-space: nowrap;
-            transition: background-color 0.2s ease, opacity 0.2s ease;
+            transition: background-color 0.2s ease;
         }
 
         .btn-nav:hover:not(:disabled) {
@@ -72,7 +76,7 @@
             font-weight: bold;
             color: #475569;
             font-size: 0.85rem;
-            min-width: 80px;
+            min-width: 85px;
             text-align: center;
             white-space: nowrap;
         }
@@ -85,12 +89,17 @@
             background-color: #e2e8f0; 
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
-        
+
+        /* MARCO CONTENEDOR INDEPENDIENTE PARA TABLA Y ZOOM */
+        #marco-scroll {
+            width: 100%;
+            overflow-x: auto;
+        }
+
         #contenedor-escalado {
             display: inline-block;
             width: max-content;
             transform-origin: top left;
-            transition: transform 0.3s ease;
         }
 
         table { 
@@ -115,7 +124,7 @@
             position: relative;   
         }
 
-        /* Anchos específicos por columna */
+        /* ANCHOS DE COLUMNAS */
         .col-28 {
             width: 28px !important;
             min-width: 28px !important;
@@ -136,7 +145,7 @@
 </head>
 <body>
 
-    <!-- Botones de Paginado Flotantes Permanentes (Independientes del Zoom) -->
+    <!-- BARRA FLOTANTE FIJA EN PANTALLA (Inamovible) -->
     <div class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
@@ -147,20 +156,22 @@
 
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
-    <div id="contenedor-escalado">
-        <table id="tabla-dinamica">
-            <thead></thead>
-            <tbody></tbody>
-        </table>
+    <div id="marco-scroll">
+        <div id="contenedor-escalado">
+            <table id="tabla-dinamica">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        // 1: Iniciar por defecto en la página derecha (Cols 18 en adelante)
+        // 1: Iniciar por defecto en el bloque derecho (Cols 18 en adelante)
         let bloqueActual = 1; 
-        const LIMITE_PRIMER_BLOQUE = 17; // Cantidad de columnas del primer bloque
+        const LIMITE_PRIMER_BLOQUE = 17;
 
         function cambiarBloque(direccion) {
             bloqueActual += direccion;
@@ -180,7 +191,6 @@
             const celdas = primeraFila.children;
             const totalColumnas = celdas.length;
 
-            // Calcular anchos acumulados de cada bloque
             let anchoBloque1 = 0;
             let anchoBloque2 = 0;
 
@@ -207,9 +217,9 @@
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${Math.min(LIMITE_PRIMER_BLOQUE, totalColumnas)}`;
             } else {
-                // SEGUNDO BLOQUE / PÁGINA DERECHA (Col 18 en adelante)
+                // SEGUNDO BLOQUE (Col 18 en adelante)
                 anchoObjetivo = anchoBloque2;
-                desplazamientoX = -anchoBloque1; // Desplazar hacia la izquierda para mostrar el bloque derecho
+                desplazamientoX = -anchoBloque1;
 
                 btnPrev.disabled = false;
                 btnNext.disabled = true;
@@ -218,15 +228,15 @@
 
             if (anchoObjetivo === 0) return;
 
-            // Calcular la escala para que el bloque activo ocupe el 100% del ancho de pantalla
             const escala = anchoDisponible / anchoObjetivo;
 
-            // Aplicar Zoom y Desplazamiento únicamente al contenedor de la tabla
+            // Aplica el Zoom y Desplazamiento únicamente al contenedor interno de la tabla
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
                 tabla.style.transform = `translateX(${desplazamientoX}px)`;
             } else {
-                contenedor.style.transform = `scale(${escala}) translateX(${desplazamientoX}px)`;
+                contenedor.style.transform = `scale(${escala})`;
+                tabla.style.transform = `translateX(${desplazamientoX}px)`;
                 contenedor.style.width = `${tabla.scrollWidth}px`;
             }
 
@@ -279,10 +289,9 @@
                         return limpia;
                     });
 
-                    // Asignar clases CSS por ancho de columna
                     const obtenerClaseColumna = (index) => {
-                        if (index < LIMITE_PRIMER_BLOQUE) return 'class="col-28"'; // Col 1 a 17 (28px)
-                        return 'class="col-64"';                                    // Col 18+ (64px)
+                        if (index < LIMITE_PRIMER_BLOQUE) return 'class="col-28"';
+                        return 'class="col-64"';
                     };
 
                     if (!encabezadosCreados) {
