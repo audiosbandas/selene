@@ -1,0 +1,103 @@
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabla Dinámica - Modo Publicado</title>
+    <style>
+        body { font-family: sans-serif; margin: 30px; background-color: #f8fafc; color: #1e293b; }
+        h2 { color: #0f172a; }
+        #mensaje-estado { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; background-color: #e2e8f0; }
+        .error { background-color: #fee2e2 !important; color: #991b1b; }
+        table { border-collapse: collapse; width: 100%; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; display: none; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
+        tr:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+
+    <h2>Mis Datos en Tiempo Real</h2>
+    <div id="mensaje-estado">Cargando información desde la publicación de Google...</div>
+    
+    <table id="tabla-dinamica">
+        <thead></thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        // ========================================================
+        // 🛠️ CONFIGURACIÓN: PEGA AQUÍ EL ENLACE DE "PUBLICAR EN LA WEB"
+        // ========================================================
+        const URL_PUBLICADA = 'AQUÍ_PEGA_EL_ENLACE_DE_GOOGLE_QUE_TERMINA_EN_CSV';
+
+        async function cargarTabla() {
+            const estado = document.getElementById("mensaje-estado");
+            try {
+                const respuesta = await fetch(URL_PUBLICADA);
+                if (!respuesta.ok) throw new Error("No se pudo obtener el archivo publicado.");
+                
+                const datosTexto = await respuesta.text();
+
+                // Separar por saltos de línea de manera segura
+                const lineas = datosTexto.split(\(/\r\)?\n/);
+                
+                const tablaHead = document.querySelector("#tabla-dinamica thead");
+                const tablaBody = document.querySelector("#tabla-dinamica tbody");
+                
+                tablaHead.innerHTML = "";
+                tablaBody.innerHTML = "";
+
+                let encabezadosCreados = false;
+
+                for (let i = 0; i < lineas.length; i++) {
+                    let filaTexto = lineas[i].trim();
+                    if (!filaTexto) continue; // Saltar filas vacías
+
+                    // Separar columnas por comas básicas
+                    let columnas = filaTexto.split(",");
+                    
+                    // Limpiar comillas automáticas
+                    columnas = columnas.map(celda => {
+                        let limpia = celda.trim();
+                        if (limpia.startsWith('"') && limpia.endsWith('"')) {
+                            limpia = limpia.substring(1, limpia.length - 1);
+                        }
+                        return limpia;
+                    });
+
+                    if (!encabezadosCreados) {
+                        let htmlHead = "<tr>";
+                        columnas.forEach(col => htmlHead += `<th>${col}</th>`);
+                        htmlHead += "</tr>";
+                        tablaHead.innerHTML = htmlHead;
+                        encabezadosCreados = true;
+                    } else {
+                        let htmlFila = "<tr>";
+                        columnas.forEach(col => htmlFila += `<td>${col}</td>`);
+                        htmlFila += "</tr>";
+                        tablaBody.innerHTML += htmlFila;
+                    }
+                }
+
+                estado.style.display = "none";
+                document.getElementById("tabla-dinamica").style.display = "table";
+
+            } catch (error) {
+                console.error(error);
+                estado.classList.add("error");
+                estado.innerText = "Error: El navegador sigue bloqueando la petición. Intenta subiendo el archivo a internet o usando un servidor local.";
+            }
+        }
+
+        cargarTabla();
+    </script>
+
+</body>
+</html>
