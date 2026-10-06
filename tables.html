@@ -2,7 +2,7 @@
 tables desborda
 </br></br></br>
 
-a
+b
 
 </br></br></br>
 
@@ -28,21 +28,27 @@ a
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
             display: none; 
-            table-layout: fixed; /* Forzar estructura estricta e idéntica en todas las columnas */
+            table-layout: fixed; /* Mantiene fijas todas las columnas */
         }
         
         th, td { 
-            font-size: 1.1rem;    /* Texto más grande */
-            padding: 10px 2px;    /* Relleno lateral ultra compacto */
+            font-size: 1.1rem;    /* Tamaño de letra solicitado */
+            padding: 10px 0px;    /* Cero relleno lateral para apretar al máximo */
             text-align: center;   /* Alineación centrada */
             border-bottom: 1px solid #e2e8f0; 
-            white-space: nowrap;  /* Mantiene los datos en una sola línea */
-            overflow: visible;    /* Permite el desbordamiento visual del contenido */
-            text-overflow: clip;  /* Muestra el texto desbordado sin cortar */
+            white-space: nowrap;  /* Todo en una línea */
+            overflow: visible;    /* Desbordamiento permitido por defecto */
+            text-overflow: clip;  
             position: relative;   
-            width: 45px;          /* Fijación estricta de ancho exacto para "VIII" */
-            min-width: 45px; 
-            max-width: 45px;
+            width: 34px;          /* Mínimo exacto en píxeles para mostrar "VIII" sin recortes */
+            min-width: 34px; 
+            max-width: 34px;
+        }
+
+        /* Regla específica para evitar que la última columna desborde hacia afuera */
+        th:last-child, td:last-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
@@ -134,6 +140,7 @@ a
 
 </body>
 </html>
+
 
 
 
