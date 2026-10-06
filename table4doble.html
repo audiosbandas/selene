@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 2
+Flotante 3
 
 
 </BR></BR></BR>
@@ -12,38 +12,38 @@ Flotante 2
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bloquea el zoom del navegador para garantizar que la barra flotante NUNCA salga de plano -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <style>
         * {
             box-sizing: border-box;
         }
 
-        /* Congelar el viewport para que la barra NUNCA se mueva */
         html, body {
             margin: 0;
             padding: 0;
             width: 100vw;
             height: 100vh;
-            overflow: hidden; /* El body no se desplaza */
+            overflow: hidden;
             background-color: #f8fafc;
             color: #1e293b;
             font-family: sans-serif;
         }
 
-        /* BARRA FLOTANTE REALMENTE INAMOVIBLE EN EL VIEWPORT */
+        /* BARRA FLOTANTE ABSOLUTAMENTE INAMOVIBLE Y SIEMPRE VISIBLE */
         .controles-paginado-flotantes {
             position: fixed !important;
-            top: 12px !important;
-            right: 15px !important;
-            z-index: 999999 !important;
+            top: 10px !important;
+            right: 10px !important;
+            z-index: 9999999 !important;
             display: flex;
             align-items: center;
             gap: 8px;
             background-color: #ffffff;
-            padding: 6px 12px;
+            padding: 6px 10px;
             border-radius: 8px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
             border: 1px solid #cbd5e1;
             transform: none !important;
         }
@@ -52,12 +52,14 @@ Flotante 2
             background-color: #2563eb;
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 8px 14px;
             border-radius: 6px;
             font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
             white-space: nowrap;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
             transition: background-color 0.2s ease;
         }
 
@@ -81,13 +83,14 @@ Flotante 2
             white-space: nowrap;
         }
 
-        /* CONTENEDOR INDEPENDIENTE CON SCROLL VERTICAL Y HORIZONTAL */
+        /* MARCO DE DESPLAZAMIENTO VERTICAL Y HORIZONTAL */
         #marco-scroll {
             width: 100vw;
             height: 100vh;
-            overflow: auto; /* El scroll ocurre únicamente dentro de este marco */
+            overflow: auto;
             padding: 15px;
-            padding-top: 65px; /* Espacio para no solaparse con la barra flotante */
+            padding-top: 65px;
+            -webkit-overflow-scrolling: touch;
         }
 
         h2 { color: #0f172a; margin: 0 0 15px 0; }
@@ -115,7 +118,6 @@ Flotante 2
             border-radius: 8px; 
             visibility: hidden; 
             table-layout: fixed; 
-            transition: transform 0.2s ease-out;
         }
         
         th, td { 
@@ -129,7 +131,7 @@ Flotante 2
             position: relative;   
         }
 
-        /* ANCHOS DE COLUMNAS DEFINIDOS */
+        /* ANCHOS MATEMÁTICAMENTE ESTRICTOS POR COLUMNA */
         .col-28 {
             width: 28px !important;
             min-width: 28px !important;
@@ -150,14 +152,14 @@ Flotante 2
 </head>
 <body>
 
-    <!-- BARRA FLOTANTE FIJA E INAMOVIBLE EN PANTALLA -->
+    <!-- BARRA FLOTANTE INDEPENDIENTE DE CUALQUIER ZOOM -->
     <div class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
     </div>
 
-    <!-- MARCO CON SCROLL INDEPENDIENTE PARA LA TABLA -->
+    <!-- CONTENEDOR CON SCROLL INDEPENDIENTE -->
     <div id="marco-scroll">
         <h2>Mis Datos en Tiempo Real</h2>
         <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
@@ -174,9 +176,11 @@ Flotante 2
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        // Iniciar en bloque 1 (Página derecha: Cols 18 en adelante)
+        // Iniciar en bloque 1 (Cols 18 en adelante)
         let bloqueActual = 1; 
-        const LIMITE_PRIMER_BLOQUE = 17;
+        const LIMITE_PRIMER_BLOQUE = 17; // Columnas 1 a 17 (28px)
+        const ANCHO_COL_1_17 = 28;
+        const ANCHO_COL_18_MAS = 64;
 
         function cambiarBloque(direccion) {
             bloqueActual += direccion;
@@ -186,6 +190,7 @@ Flotante 2
         function aplicarZoomOptimo() {
             const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
+            const marco = document.getElementById("marco-scroll");
             const btnPrev = document.getElementById("btn-prev");
             const btnNext = document.getElementById("btn-next");
             const indicador = document.getElementById("indicador-bloque");
@@ -193,27 +198,20 @@ Flotante 2
             const primeraFila = tabla.querySelector("tr");
             if (!primeraFila) return;
 
-            // Reset temporal de transformaciones para medir de forma limpia y exacta los anchos reales
-            tabla.style.transform = "none";
-            contenedor.style.zoom = "1";
-            contenedor.style.transform = "none";
+            // Restablecer el scroll interno al inicio para evitar descalibres
+            marco.scrollLeft = 0;
+            marco.scrollTop = 0;
 
-            const celdas = primeraFila.children;
-            const totalColumnas = celdas.length;
+            const totalColumnas = primeraFila.children.length;
 
-            let anchoBloque1 = 0;
-            let anchoBloque2 = 0;
+            // Cálculo matemático puro e inmune a distorsiones de la pantalla
+            const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
+            const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
 
-            for (let i = 0; i < totalColumnas; i++) {
-                const anchoCelda = celdas[i].offsetWidth;
-                if (i < LIMITE_PRIMER_BLOQUE) {
-                    anchoBloque1 += anchoCelda;
-                } else {
-                    anchoBloque2 += anchoCelda;
-                }
-            }
+            const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
+            const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
 
-            const anchoDisponible = document.documentElement.clientWidth - 30;
+            const anchoDisponible = window.innerWidth - 30;
 
             let anchoObjetivo = 0;
             let desplazamientoX = 0;
@@ -225,7 +223,7 @@ Flotante 2
 
                 btnPrev.disabled = true;
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
-                indicador.innerText = `Cols 1 - ${Math.min(LIMITE_PRIMER_BLOQUE, totalColumnas)}`;
+                indicador.innerText = `Cols 1 - ${colsBloque1}`;
             } else {
                 // SEGUNDO BLOQUE (Cols 18 en adelante)
                 anchoObjetivo = anchoBloque2;
@@ -238,17 +236,17 @@ Flotante 2
 
             if (anchoObjetivo === 0) return;
 
-            // Recalcular la escala óptima exacta para maximizar la página activa en pantalla
+            // Calcular escala exacta según el ancho disponible
             const escala = anchoDisponible / anchoObjetivo;
 
-            // Aplicar escala y traslación
+            // Aplicar la escala y la traslación directamente
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
                 tabla.style.transform = `translateX(${desplazamientoX}px)`;
             } else {
                 contenedor.style.transform = `scale(${escala})`;
                 tabla.style.transform = `translateX(${desplazamientoX}px)`;
-                contenedor.style.width = `${tabla.scrollWidth}px`;
+                contenedor.style.width = `${(anchoBloque1 + anchoBloque2)}px`;
             }
 
             tabla.style.visibility = "visible";
@@ -339,4 +337,5 @@ Flotante 2
 
 </body>
 </html>
+
 
