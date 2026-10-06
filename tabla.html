@@ -27,90 +27,111 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla Dinámica - Diagnóstico Avanzado</title>
+    <title>Tabla Dinámica desde Google Sheets</title>
     <style>
-        table { border-collapse: collapse; width: 100%; font-family: sans-serif; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; font-weight: bold; }
-        .consola-debug { background: #222; color: #00ff00; padding: 15px; font-family: monospace; border-radius: 5px; margin: 10px 0; white-space: pre-wrap; }
-        .error { color: #ff3333; font-weight: bold; }
+        body { font-family: sans-serif; margin: 20px; color: #333; }
+        h2 { color: #0288d1; }
+        #mensaje-estado { background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-weight: bold; }
+        table { border-collapse: collapse; width: 100%; margin-top: 15px; display: none; }
+        th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+        th { background-color: #f1f5f9; font-weight: bold; color: #1e293b; }
+        tr:nth-child(even) { background-color: #f8fafc; }
     </style>
 </head>
 <body>
 
-    <h2>Estado de la Conexión con Google Sheets</h2>
+    <h2>Mis Datos en Tiempo Real</h2>
+    <div id="mensaje-estado">Cargando información desde la planilla...</div>
     
-    <!-- Caja de texto en pantalla para ver el error sin abrir F12 -->
-    <div id="debug" class="consola-debug">Iniciando conexión...</div>
-
-    <table id="tabla-dinamica" style="display:none;">
+    <table id="tabla-dinamica">
         <thead></thead>
         <tbody></tbody>
     </table>
 
-<script>
-    // PEGA AQUÍ EL ENLACE COMPLETO QUE TE DIO GOOGLE AL "PUBLICAR EN LA WEB"
-    const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
+    <script>
+        // ==========================================
+        // CONFIGURACIÓN: PEGA TUS DATOS AQUÍ
+        // ==========================================
+        const SHEET_ID = '1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw';
+        const SHEET_GID = '1726751477'; 
+        
+        // URL segura usando la API de visualización de Google
+        const url = `https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
 
-    async function cargarTabla() {
-        const div = document.getElementById("debug");
-        try {
-            div.innerText = "Conectando mediante enlace público...";
-            const respuesta = await fetch(URL_PUBLICADA);
-            
-            if (!respuesta.ok) throw new Error("No se pudo conectar con el enlace de publicación.");
-            
-            const datosTexto = await respuesta.text();
-            div.innerText = "Procesando datos...";
-
-            // Procesar filas (separar por saltos de línea)
-            const filas = datosTexto.split(\(/\r\)?\n/).map(fila => {
-                // Separar por comas respetando textos con comas internas
-                const coincidencias = fila.match(/(".*?"|[^",\s]+|(?<=,)(?=,))/g);
-                return coincidencias ? coincidencias.map(celda => celda.replace(/^"(.*)"\$/, '\$1').trim()) : [];
-            });
-
-            const tablaHead = document.querySelector("#tabla-dinamica thead");
-            const tablaBody = document.querySelector("#tabla-dinamica tbody");
-            
-            tablaHead.innerHTML = "";
-            tablaBody.innerHTML = "";
-
-            // Crear encabezados
-            let htmlHead = "<tr>";
-            filas[0].forEach(columna => {
-                htmlHead += `<th>${columna || ''}</th>`;
-            });
-            htmlHead += "</tr>";
-            tablaHead.innerHTML = htmlHead;
-
-            // Crear filas de datos
-            for (let i = 1; i < filas.length; i++) {
-                if (filas[i].length === 0 || (filas[i].length === 1 && filas[i][0] === "")) continue;
+        async function cargarTabla() {
+            const estado = document.getElementById("mensaje-estado");
+            try {
+                const respuesta = await fetch(url);
+                if (!respuesta.ok) throw new Error("No se pudo conectar con el documento.");
                 
-                let htmlFila = "<tr>";
-                filas[i].forEach(celda => {
-                    htmlFila += `<td>${celda || ''}</td>`;
-                });
-                htmlFila += "</tr>";
-                tablaBody.innerHTML += htmlFila;
+                const datosTexto = await respuesta.text();
+
+                // 1. Dividir de forma limpia por filas sin expresiones complejas
+                const filasClrudas = datosTexto.split("\n");
+                
+                const tablaHead = document.querySelector("#tabla-dinamica thead");
+                const tablaBody = document.querySelector("#tabla-dinamica tbody");
+                
+                tablaHead.innerHTML = "";
+                tablaBody.innerHTML = "";
+
+                let encabezadosCreados = false;
+
+                for (let i = 0; i < filasClrudas.length; i++) {
+                    let filaTexto = filasClrudas[i].trim();
+                    if (!filaTexto) continue; // Saltar líneas vacías
+
+                    // Separar columnas de manera básica por comas
+                    let columnas = filaTexto.split(",");
+                    
+                    // Limpiar las comillas dobles que Google pone automáticamente a los textos
+                    columnas = columnas.map(celda => {
+                        let limpia = celda.trim();
+                        if (limpia.startsWith('"') && limpia.endsWith('"')) {
+                            limpia = limpia.substring(1, limpia.length - 1);
+                        }
+                        return limpia;
+                    });
+
+                    // 2. Construir los encabezados (Fila 0)
+                    if (!encabezadosCreados) {
+                        let htmlHead = "<tr>";
+                        columnas.forEach(col => {
+                            htmlHead += `<th>${col}</th>`;
+                        });
+                        htmlHead += "</tr>";
+                        tablaHead.innerHTML = htmlHead;
+                        encabezadosCreados = true;
+                    } else {
+                        // 3. Construir las filas de datos comunes
+                        let htmlFila = "<tr>";
+                        columnas.forEach(col => {
+                            htmlFila += `<td>${col}</td>`;
+                        });
+                        htmlFila += "</tr>";
+                        tablaBody.innerHTML += htmlFila;
+                    }
+                }
+
+                // Ocultar mensaje de carga y hacer visible la tabla
+                estado.style.display = "none";
+                document.getElementById("tabla-dinamica").style.display = "table";
+
+            } catch (error) {
+                console.error(error);
+                estado.style.backgroundColor = "#fee2e2";
+                estado.style.color = "#991b1b";
+                estado.innerText = "Error crítico: Verifica que la hoja sea pública o que los IDs sean correctos.";
             }
-
-            document.getElementById("tabla-dinamica").style.display = "table";
-            div.innerText = "¡Conexión exitosa! Datos cargados.";
-
-        } catch (error) {
-            console.error(error);
-            div.innerHTML = `<span class="error">[ERROR] ${error.message}</span>`;
         }
-    }
 
-    cargarTabla();
-</script>
-
+        // Ejecutar inmediatamente al abrir la página
+        cargarTabla();
+    </script>
 
 </body>
 </html>
+
 
 
 
