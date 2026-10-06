@@ -17,28 +17,30 @@
             font-family: sans-serif; 
             margin: 0; 
             padding: 15px;
+            padding-top: 65px; /* Espacio superior para dar lugar a los botones flotantes */
             background-color: #f8fafc; 
             color: #1e293b; 
             overflow-x: hidden; 
             width: 100vw;
         }
 
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        h2 { color: #0f172a; margin: 0; }
+        h2 { color: #0f172a; margin: 0 0 15px 0; }
         
-        /* Controles de Navegación / Botones */
-        .controles-paginado {
+        /* Controles de Navegación FLOTANTES */
+        .controles-paginado-flotantes {
+            position: fixed;
+            top: 10px;
+            right: 15px;
+            z-index: 1000;
             display: flex;
             align-items: center;
             gap: 10px;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(4px);
+            border: 1px solid #e2e8f0;
         }
 
         .btn-nav {
@@ -68,6 +70,8 @@
             font-weight: bold;
             color: #475569;
             font-size: 0.95rem;
+            min-width: 85px;
+            text-align: center;
         }
 
         #mensaje-estado { 
@@ -129,16 +133,14 @@
 </head>
 <body>
 
-    <div class="header-container">
-        <h2>Mis Datos en Tiempo Real</h2>
-
-        <!-- Botones de Paginado Lateral -->
-        <div class="controles-paginado">
-            <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)" disabled>◄ Anterior</button>
-            <span id="indicador-bloque" class="indicador-bloque">Cols 1 - 17</span>
-            <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
-        </div>
+    <!-- Botones de Paginado Flotantes -->
+    <div class="controles-paginado-flotantes">
+        <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
+        <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
+        <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
     </div>
+
+    <h2>Mis Datos en Tiempo Real</h2>
 
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
@@ -153,8 +155,8 @@
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        // Variables de control de estado/paginado
-        let bloqueActual = 0; // 0: Cols 1 a 17, 1: Cols 18 en adelante
+        // 1: Iniciar por defecto en el bloque derecho (Cols 18 en adelante)
+        let bloqueActual = 1; 
         const LIMITE_PRIMER_BLOQUE = 17; // Cantidad de columnas del primer bloque
 
         function cambiarBloque(direccion) {
@@ -202,9 +204,9 @@
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${Math.min(LIMITE_PRIMER_BLOQUE, totalColumnas)}`;
             } else {
-                // SEGUNDO BLOQUE (Col 18 en adelante)
+                // SEGUNDO BLOQUE / PÁGINA DERECHA (Col 18 en adelante)
                 anchoObjetivo = anchoBloque2;
-                desplazamientoX = -anchoBloque1; // Desplazar la tabla a la izquierda para revelar el segundo bloque
+                desplazamientoX = -anchoBloque1; // Desplazar hacia la izquierda para mostrar el bloque derecho
 
                 btnPrev.disabled = false;
                 btnNext.disabled = true;
@@ -213,10 +215,10 @@
 
             if (anchoObjetivo === 0) return;
 
-            // Calcular la escala para que el bloque activo ocupe el 100% de la pantalla
+            // Calcular la escala para que el bloque activo ocupe el 100% del ancho de pantalla
             const escala = anchoDisponible / anchoObjetivo;
 
-            // Aplicar Zoom / Transformación
+            // Aplicar Zoom y Desplazamiento
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
                 tabla.style.transform = `translateX(${desplazamientoX}px)`;
