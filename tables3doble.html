@@ -1,0 +1,216 @@
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabla Dinámica - Google Sheets</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: sans-serif; 
+            margin: 0; 
+            padding: 15px;
+            background-color: #f8fafc; 
+            color: #1e293b; 
+            overflow-x: hidden; 
+            width: 100vw;
+        }
+
+        h2 { color: #0f172a; margin-top: 0; }
+        
+        #mensaje-estado { 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+            font-weight: bold; 
+            background-color: #e2e8f0; 
+        }
+        .error { background-color: #fee2e2 !important; color: #991b1b; }
+        
+        #contenedor-escalado {
+            display: inline-block;
+            width: max-content;
+            transform-origin: top left;
+        }
+
+        table { 
+            border-collapse: collapse; 
+            width: max-content; 
+            background: #ffffff; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            border-radius: 8px; 
+            visibility: hidden; 
+            table-layout: fixed; 
+        }
+        
+        th, td { 
+            font-size: 0.9rem;    
+            padding: 8px 0px;    
+            text-align: center;   
+            border-bottom: 1px solid #e2e8f0; 
+            white-space: nowrap;  
+            overflow: hidden;    
+            text-overflow: ellipsis;  
+            position: relative;   
+        }
+
+        /* Anchos específicos por columna */
+        .col-28 {
+            width: 28px !important;
+            min-width: 28px !important;
+            max-width: 28px !important;
+            padding: 6px 0px;
+            font-size: 0.8rem;
+        }
+
+        .col-64 {
+            width: 64px !important;
+            min-width: 64px !important;
+            max-width: 64px !important;
+        }
+        
+        th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
+        tr:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+
+    <h2>Mis Datos en Tiempo Real</h2>
+    <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
+    
+    <div id="contenedor-escalado">
+        <table id="tabla-dinamica">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
+        const GID = '1726751477';
+
+        function aplicarZoomOptimo() {
+            const contenedor = document.getElementById("contenedor-escalado");
+            const tabla = document.getElementById("tabla-dinamica");
+            
+            const anchoDisponible = document.documentElement.clientWidth - 30; 
+
+            // Calcular el ancho visible total hasta la columna 17 (índice 0 a 16)
+            const primeraFila = tabla.querySelector("tr");
+            if (!primeraFila) return;
+
+            let anchoHastaCol17 = 0;
+            const celdas = primeraFila.children;
+            const limiteCols = Math.min(17, celdas.length);
+
+            for (let i = 0; i < limiteCols; i++) {
+                anchoHastaCol17 += celdas[i].offsetWidth;
+            }
+
+            if (anchoHastaCol17 === 0) return;
+
+            // Escala calculada para encajar exactamente las primeras 17 columnas en pantalla
+            const escala = anchoDisponible / anchoHastaCol17;
+
+            if ('zoom' in contenedor.style) {
+                contenedor.style.zoom = escala;
+            } else {
+                contenedor.style.transform = `scale(${escala})`;
+                contenedor.style.width = `${tabla.scrollWidth}px`;
+            }
+
+            tabla.style.visibility = "visible";
+        }
+
+        async function cargarTabla() {
+            const estado = document.getElementById("mensaje-estado");
+            try {
+                estado.innerText = "Descargando información en tiempo real...";
+
+                const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Math.random()}`;
+
+                const respuesta = await fetch(urlDirecta, {
+                    cache: 'reload',
+                    headers: {
+                        'Pragma': 'no-cache',
+                        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
+                    }
+                });
+                
+                if (!respuesta.ok) {
+                    throw new Error("Google no respondió correctamente. Revisa el enlace.");
+                }
+                
+                const datosTexto = await respuesta.text();
+                estado.innerText = "Dibujando las filas de la tabla...";
+
+                const lineas = datosTexto.split("\n");
+                
+                const tablaHead = document.querySelector("#tabla-dinamica thead");
+                const tablaBody = document.querySelector("#tabla-dinamica tbody");
+                
+                tablaHead.innerHTML = "";
+                tablaBody.innerHTML = "";
+
+                let encabezadosCreados = false;
+
+                for (let i = 0; i < lineas.length; i++) {
+                    let filaTexto = lineas[i].trim();
+                    if (filaTexto === "") continue;
+
+                    let columnas = filaTexto.split(",");
+                    
+                    columnas = columnas.map(celda => {
+                        let limpia = celda.trim();
+                        if (limpia.startsWith('"') && limpia.endsWith('"')) {
+                            limpia = limpia.substring(1, limpia.length - 1);
+                        }
+                        return limpia;
+                    });
+
+                    // Asignación de clases CSS según la columna (1-indexed: col 1 a 17 -> 28px; col 19+ -> 64px)
+                    const obtenerClaseColumna = (index) => {
+                        if (index < 17) return 'class="col-28"';      // Col 1 a 17
+                        if (index >= 18) return 'class="col-64"';     // Col 19 en adelante
+                        return 'class="col-64"';                      // Columna 18 (por defecto 64px)
+                    };
+
+                    if (!encabezadosCreados) {
+                        let htmlHead = "<tr>";
+                        columnas.forEach((col, idx) => {
+                            htmlHead += `<th ${obtenerClaseColumna(idx)}>${col}</th>`;
+                        });
+                        htmlHead += "</tr>";
+                        tablaHead.innerHTML = htmlHead;
+                        encabezadosCreados = true;
+                    } else {
+                        let htmlFila = "<tr>";
+                        columnas.forEach((col, idx) => {
+                            htmlFila += `<td ${obtenerClaseColumna(idx)}>${col}</td>`;
+                        });
+                        htmlFila += "</tr>";
+                        tablaBody.innerHTML += htmlFila;
+                    }
+                }
+
+                estado.style.display = "none";
+                aplicarZoomOptimo();
+
+            } catch (error) {
+                console.error("Detalle:", error);
+                estado.classList.add("error");
+                estado.innerText = "Error: " + error.message;
+            }
+        }
+
+        window.addEventListener("resize", aplicarZoomOptimo);
+        cargarTabla();
+    </script>
+
+</body>
+</html>
