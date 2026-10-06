@@ -3,7 +3,7 @@
 
 
 
-a
+b
 
 
 </BR></BR></BR>
@@ -29,7 +29,7 @@ a
             padding: 15px;
             background-color: #f8fafc; 
             color: #1e293b; 
-            overflow-x: hidden; /* Previene scrollbar horizontal */
+            overflow-x: hidden; 
             width: 100vw;
         }
 
@@ -44,7 +44,6 @@ a
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
         
-        /* Contenedor para aplicar la escala/zoom dinámico */
         #contenedor-escalado {
             display: inline-block;
             width: max-content;
@@ -57,8 +56,8 @@ a
             background: #ffffff; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
-            visibility: hidden; /* Permite medir las dimensiones en memoria antes de mostrar */
-            table-layout: fixed; /* Columnas estrictas */
+            visibility: hidden; 
+            table-layout: fixed; 
         }
         
         th, td { 
@@ -70,12 +69,11 @@ a
             overflow: visible;    
             text-overflow: clip;  
             position: relative;   
-            width: 28px;          /* Ancho exacto fijado a 28px */
+            width: 28px;          
             min-width: 28px; 
             max-width: 28px;
         }
 
-        /* La última columna no desborda y usa puntos suspensivos si es muy larga */
         th:last-child, td:last-child {
             overflow: hidden;
             text-overflow: ellipsis;
@@ -90,7 +88,6 @@ a
     <h2>Mis Datos en Tiempo Real</h2>
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
-    <!-- Envoltorio para escalar la tabla automáticamente al ancho disponible -->
     <div id="contenedor-escalado">
         <table id="tabla-dinamica">
             <thead></thead>
@@ -99,24 +96,21 @@ a
     </div>
 
     <script>
-        // URL base pública
-        const URL_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
+        // Ruta directa a la API de exportación para evitar la caché intermedia de Google
+        const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
+        const GID = '1726751477';
 
-        // Función para aplicar el zoom exacto y cubrir el 100% del ancho
         function aplicarZoomOptimo() {
             const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
             
-            // Calculamos el ancho visible libre en la pantalla
             const anchoDisponible = document.documentElement.clientWidth - 30; 
             const anchoRealTabla = tabla.scrollWidth;
 
             if (anchoRealTabla === 0) return;
 
-            // Factor de multiplicación exacto
             const escala = anchoDisponible / anchoRealTabla;
 
-            // Compatibilidad de escalado
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
             } else {
@@ -124,24 +118,22 @@ a
                 contenedor.style.width = `${anchoRealTabla}px`;
             }
 
-            // Hacemos visible la tabla ya renderizada con el zoom final
             tabla.style.visibility = "visible";
         }
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
             try {
-                estado.innerText = "Descargando información...";
+                estado.innerText = "Descargando información en tiempo real...";
 
-                // Romper caché mediante timestamp dinámico (_t)
-                const urlAntiCache = `${URL_BASE}&_t=${Date.now()}`;
+                // Consulta directa saltando caché de Google con parámetro aleatorio
+                const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Math.random()}`;
 
-                // Fetch omitiendo memorias previas de proxy o navegador
-                const respuesta = await fetch(urlAntiCache, {
-                    cache: 'no-store',
+                const respuesta = await fetch(urlDirecta, {
+                    cache: 'reload',
                     headers: {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache'
+                        'Pragma': 'no-cache',
+                        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
                     }
                 });
                 
@@ -197,8 +189,6 @@ a
                 }
 
                 estado.style.display = "none";
-
-                // Aplica el escalado visual antes de mostrar la tabla
                 aplicarZoomOptimo();
 
             } catch (error) {
@@ -208,11 +198,10 @@ a
             }
         }
 
-        // Reajuste instantáneo si se redimensiona la pantalla o gira el móvil
         window.addEventListener("resize", aplicarZoomOptimo);
-
         cargarTabla();
     </script>
 
 </body>
 </html>
+
