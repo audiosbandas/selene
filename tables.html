@@ -18,26 +18,28 @@ tables desborda
         #mensaje-estado { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; background-color: #e2e8f0; }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
         
-        /* Modificaciones en la tabla para soportar desbordamiento */
+        /* Contenedor con barra de desplazamiento horizontal */
+        .contenedor-tabla {
+            width: 100%;
+            overflow-x: auto; /* Permite scroll horizontal si las columnas no entran */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            border-radius: 8px;
+        }
+
         table { 
             border-collapse: collapse; 
-            width: 100%; 
+            min-width: 100%; /* Permite crecer según el contenido */
             background: #ffffff; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-            border-radius: 8px; 
             display: none; 
-            table-layout: fixed; /* Mantiene un ancho de columna fijo */
+            /* Se quitó table-layout: fixed para que no colapse el ancho */
         }
         
         th, td { 
-            min-width: 100px;      /* Se establece el ancho mínimo de columna a 100px */
-            padding: 12px 25px; 
-            text-align: left; 
+            min-width: 100px;     /* Ancho mínimo REAL que ahora sí se respetará */
+            padding: 12px 20px;   /* Separación interna amplia */
+            text-align: center;   /* Centrado para dar más aire visual al "VIII" */
             border-bottom: 1px solid #e2e8f0; 
-            white-space: nowrap;  /* Evita que el texto salte de línea */
-            overflow: visible;    /* Permite que el texto desborde fuera de la celda */
-            position: relative;   /* Establece el orden de apilamiento adecuado */
-            background: transparent; /* Mantiene la celda transparente para ver el desbordamiento */
+            white-space: nowrap;  /* Evita saltos de línea */
         }
         
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
@@ -49,15 +51,15 @@ tables desborda
     <h2>Mis Datos en Tiempo Real</h2>
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
-    <table id="tabla-dinamica">
-        <thead></thead>
-        <tbody></tbody>
-    </table>
+    <!-- Contenedor agregado para permitir el desplazamiento horizontal si no entran las columnas -->
+    <div class="contenedor-tabla">
+        <table id="tabla-dinamica">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+    </div>
 
     <script>
-        // ========================================================
-        // 🛠️ CONFIGURACIÓN: PEGA AQUÍ TU ENLACE DE "PUBLICAR EN LA WEB"
-        // ========================================================
         const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
 
         async function cargarTabla() {
@@ -73,7 +75,6 @@ tables desborda
                 const datosTexto = await respuesta.text();
                 estado.innerText = "Dibujando las filas de la tabla...";
 
-                // Separación ultrasegura sin caracteres extraños ni barras invertidas
                 const lineas = datosTexto.split("\n");
                 
                 const tablaHead = document.querySelector("#tabla-dinamica thead");
@@ -90,13 +91,10 @@ tables desborda
                         continue;
                     }
 
-                    // Separar columnas de forma directa
                     let columnas = filaTexto.split(",");
                     
-                    // Limpiar comillas de los textos
                     columnas = columnas.map(celda => {
                         let limpia = celda.trim();
-                        // Remover comillas iniciales y finales si existen
                         if (limpia.startsWith('"') && limpia.endsWith('"')) {
                             limpia = limpia.substring(1, limpia.length - 1);
                         }
@@ -121,7 +119,6 @@ tables desborda
                     }
                 }
 
-                // Ocultar bloque de carga y mostrar resultados
                 estado.style.display = "none";
                 document.getElementById("tabla-dinamica").style.display = "table";
 
@@ -132,10 +129,8 @@ tables desborda
             }
         }
 
-        // Ejecutar proceso
         cargarTabla();
     </script>
 
 </body>
 </html>
-
