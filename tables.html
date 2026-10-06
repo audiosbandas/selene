@@ -2,7 +2,7 @@
 tables desborda
 </br></br></br>
 
-c
+a
 
 </br></br></br>
 
@@ -16,16 +16,36 @@ c
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tabla Dinámica - Google Sheets</title>
     <style>
-        body { font-family: sans-serif; margin: 15px; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
-        h2 { color: #0f172a; }
-        #mensaje-estado { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; background-color: #e2e8f0; }
+        * {
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: sans-serif; 
+            margin: 0; 
+            padding: 15px;
+            background-color: #f8fafc; 
+            color: #1e293b; 
+            overflow-x: hidden; /* Evita cualquier barra de desplazamiento horizontal */
+            width: 100vw;
+        }
+
+        h2 { color: #0f172a; margin-top: 0; }
+        
+        #mensaje-estado { 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+            font-weight: bold; 
+            background-color: #e2e8f0; 
+        }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
         
-        /* Contenedor que aplicará el zoom dinámico */
+        /* Contenedor que aplicará el zoom dinámico instantáneo */
         #contenedor-escalado {
             display: inline-block;
             width: max-content;
-            transform-origin: 0 0;
+            transform-origin: top left;
         }
 
         table { 
@@ -34,8 +54,8 @@ c
             background: #ffffff; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
-            display: none; 
-            table-layout: fixed; /* Mantiene fijas todas las columnas */
+            visibility: hidden; /* Oculto inicialmente para evitar saltos/desajustes al calcular */
+            table-layout: fixed; /* Mantiene estrictos los 28px por columna */
         }
         
         th, td { 
@@ -47,7 +67,7 @@ c
             overflow: visible;    
             text-overflow: clip;  
             position: relative;   
-            width: 28px;          /* Ancho fijo de 28px por columna */
+            width: 28px;          /* Ancho exacto fijado a 28px */
             min-width: 28px; 
             max-width: 28px;
         }
@@ -66,7 +86,7 @@ c
     <h2>Mis Datos en Tiempo Real</h2>
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
-    <!-- Envoltorio para calcular y aplicar el zoom dinámico -->
+    <!-- Envoltorio para el zoom dinámico -->
     <div id="contenedor-escalado">
         <table id="tabla-dinamica">
             <thead></thead>
@@ -77,29 +97,30 @@ c
     <script>
         const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
 
-        // Función para ajustar el zoom automáticamente según el ancho de la pantalla
-        function ajustarZoomTabla() {
+        // Función para aplicar el zoom exacto para el 100% de la pantalla
+        function aplicarZoomOptimo() {
             const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
             
-            if (tabla.offsetWidth === 0) return;
-
-            // Ancho disponible restando márgenes del body
-            const anchoDisponible = document.body.clientWidth;
-            const anchoRealTabla = tabla.offsetWidth;
+            // Calculamos el ancho libre visible disponible en la pantalla (restando padding)
+            const anchoDisponible = document.documentElement.clientWidth - 30; 
+            const anchoRealTabla = tabla.scrollWidth;
 
             if (anchoRealTabla === 0) return;
 
-            // Factor de escala exacto
+            // Factor de multiplicación exacto
             const escala = anchoDisponible / anchoRealTabla;
 
-            // Implementación híbrida para compatibilidad universal de navegadores
+            // Se aplica directamente la escala antes de mostrar al usuario
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
             } else {
                 contenedor.style.transform = `scale(${escala})`;
                 contenedor.style.width = `${anchoRealTabla}px`;
             }
+
+            // Hacemos visible la tabla ya ajustada perfectamente en pantalla
+            tabla.style.visibility = "visible";
         }
 
         async function cargarTabla() {
@@ -160,12 +181,9 @@ c
                 }
 
                 estado.style.display = "none";
-                document.getElementById("tabla-dinamica").style.display = "table";
 
-                // Forzar un pequeño retardo para asegurar que el DOM dibujó la tabla antes de medir su ancho
-                requestAnimationFrame(() => {
-                    ajustarZoomTabla();
-                });
+                // Se aplica la medición y escalado en el mismo ciclo de render
+                aplicarZoomOptimo();
 
             } catch (error) {
                 console.error("Detalle:", error);
@@ -174,8 +192,8 @@ c
             }
         }
 
-        // Reajustar zoom automáticamente si se cambia el tamaño de la ventana
-        window.addEventListener("resize", ajustarZoomTabla);
+        // Reajuste instantáneo si se redimensiona la pantalla o gira el móvil
+        window.addEventListener("resize", aplicarZoomOptimo);
 
         cargarTabla();
     </script>
