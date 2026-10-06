@@ -2,7 +2,7 @@
 https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv
 
 </br></br></br>
-a
+b
 </br></br></br>
 
 
@@ -13,7 +13,7 @@ a
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla Dinámica - Modo Publicado Estable</title>
+    <title>Tabla Dinámica - Google Sheets</title>
     <style>
         body { font-family: sans-serif; margin: 30px; background-color: #f8fafc; color: #1e293b; }
         h2 { color: #0f172a; }
@@ -28,7 +28,7 @@ a
 <body>
 
     <h2>Mis Datos en Tiempo Real</h2>
-    <div id="mensaje-estado">Conectando y procesando filas de la planilla...</div>
+    <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
     <table id="tabla-dinamica">
         <thead></thead>
@@ -39,18 +39,23 @@ a
         // ========================================================
         // 🛠️ CONFIGURACIÓN: PEGA AQUÍ TU ENLACE DE "PUBLICAR EN LA WEB"
         // ========================================================
-        const URL_PUBLICADA = https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
+        const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
             try {
+                estado.innerText = "Descargando información...";
                 const respuesta = await fetch(URL_PUBLICADA);
-                if (!respuesta.ok) throw new Error("No se pudo obtener el archivo publicado de Google.");
+                
+                if (!respuesta.ok) {
+                    throw new Error("Google no respondió correctamente. Revisa el enlace.");
+                }
                 
                 const datosTexto = await respuesta.text();
+                estado.innerText = "Dibujando las filas de la tabla...";
 
-                // Separación simple y segura por saltos de línea estándar
-                const lineas = datosTexto.replace(\(/\r/\)g, "").split("\n");
+                // Separación ultrasegura sin caracteres extraños ni barras invertidas
+                const lineas = datosTexto.split("\n");
                 
                 const tablaHead = document.querySelector("#tabla-dinamica thead");
                 const tablaBody = document.querySelector("#tabla-dinamica tbody");
@@ -62,55 +67,57 @@ a
 
                 for (let i = 0; i < lineas.length; i++) {
                     let filaTexto = lineas[i].trim();
-                    if (!filaTexto) continue; // Ignorar líneas en blanco
+                    if (filaTexto === "") {
+                        continue;
+                    }
 
-                    // Separar columnas por comas limpias
+                    // Separar columnas de forma directa
                     let columnas = filaTexto.split(",");
                     
-                    // Limpiar las comillas dobles que rodeen a los textos
+                    // Limpiar comillas de los textos
                     columnas = columnas.map(celda => {
                         let limpia = celda.trim();
+                        // Remover comillas iniciales y finales si existen
                         if (limpia.startsWith('"') && limpia.endsWith('"')) {
                             limpia = limpia.substring(1, limpia.length - 1);
                         }
                         return limpia;
                     });
 
-                    // Construir cabecera (Fila 0)
-                    if (!encabezadosCreados) {
+                    if (encabezadosCreados === false) {
                         let htmlHead = "<tr>";
                         columnas.forEach(col => {
-                            htmlHead += `<th>${col}</th>`;
+                            htmlHead += "<th>" + col + "</th>";
                         });
                         htmlHead += "</tr>";
                         tablaHead.innerHTML = htmlHead;
                         encabezadosCreados = true;
                     } else {
-                        // Construir el resto de filas de datos
                         let htmlFila = "<tr>";
                         columnas.forEach(col => {
-                            htmlFila += `<td>${col}</td>`;
+                            htmlFila += "<td>" + col + "</td>";
                         });
                         htmlFila += "</tr>";
                         tablaBody.innerHTML += htmlFila;
                     }
                 }
 
-                // Ocultar cargando y activar visualización de la tabla
+                // Ocultar bloque de carga y mostrar resultados
                 estado.style.display = "none";
                 document.getElementById("tabla-dinamica").style.display = "table";
 
             } catch (error) {
-                console.error("Detalle del error:", error);
+                console.error("Detalle:", error);
                 estado.classList.add("error");
-                estado.innerText = "Error al procesar: " + error.message;
+                estado.innerText = "Error: " + error.message;
             }
         }
 
-        // Ejecutar inmediatamente
+        // Ejecutar proceso
         cargarTabla();
     </script>
 
 </body>
 </html>
+
 
