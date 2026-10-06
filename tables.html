@@ -2,7 +2,7 @@
 tables desborda
 </br></br></br>
 
-a
+b
 
 </br></br></br>
 
@@ -16,31 +16,30 @@ a
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tabla Dinámica - Google Sheets</title>
     <style>
-        body { font-family: sans-serif; margin: 30px; background-color: #f8fafc; color: #1e293b; }
+        body { font-family: sans-serif; margin: 15px; background-color: #f8fafc; color: #1e293b; }
         h2 { color: #0f172a; }
         #mensaje-estado { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; background-color: #e2e8f0; }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
         
-        /* Modificaciones en la tabla para soportar desbordamiento */
         table { 
             border-collapse: collapse; 
-            min-width: 100%; /* Cambiado de width: 100% a min-width: 100% */
+            width: 100%; /* Forzamos a que encaje exacto en la pantalla */
             background: #ffffff; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
             border-radius: 8px; 
             display: none; 
-            /* Se eliminó table-layout: fixed para permitir flexibilidad */
+            table-layout: auto; /* Permite que las columnas se reduzcan según su contenido */
         }
         
         th, td { 
-            min-width: 27px;      /* Se establece el ancho mínimo de columna a 27px */
-            padding: 12px 15px; 
-            text-align: left; 
+            font-size: 1.1rem;    /* Texto más grande */
+            padding: 10px 4px;    /* Relleno lateral mínimo (4px) para ajustar columnas al límite */
+            text-align: center;   /* Alineación centrada para optimizar lectura corta como "VIII" */
             border-bottom: 1px solid #e2e8f0; 
-            white-space: nowrap;  /* Evita que el texto salte de línea */
-            overflow: visible;    /* Permite que el texto desborde fuera de la celda */
-            position: relative;   /* Establece el orden de apilamiento adecuado */
-            background: transparent; /* Mantiene la celda transparente para ver el desbordamiento */
+            white-space: nowrap;  /* Mantiene los datos en una sola línea */
+            overflow: hidden;     /* Evita que el texto desborde a otras columnas */
+            text-overflow: ellipsis; /* Agrega '...' si un texto supera el espacio disponible */
+            min-width: 0;         /* Permite que la columna se reduzca al mínimo indispensable */
         }
         
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
@@ -58,9 +57,6 @@ a
     </table>
 
     <script>
-        // ========================================================
-        // 🛠️ CONFIGURACIÓN: PEGA AQUÍ TU ENLACE DE "PUBLICAR EN LA WEB"
-        // ========================================================
         const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
 
         async function cargarTabla() {
@@ -76,7 +72,6 @@ a
                 const datosTexto = await respuesta.text();
                 estado.innerText = "Dibujando las filas de la tabla...";
 
-                // Separación ultrasegura sin caracteres extraños ni barras invertidas
                 const lineas = datosTexto.split("\n");
                 
                 const tablaHead = document.querySelector("#tabla-dinamica thead");
@@ -93,13 +88,10 @@ a
                         continue;
                     }
 
-                    // Separar columnas de forma directa
                     let columnas = filaTexto.split(",");
                     
-                    // Limpiar comillas de los textos
                     columnas = columnas.map(celda => {
                         let limpia = celda.trim();
-                        // Remover comillas iniciales y finales si existen
                         if (limpia.startsWith('"') && limpia.endsWith('"')) {
                             limpia = limpia.substring(1, limpia.length - 1);
                         }
@@ -124,7 +116,6 @@ a
                     }
                 }
 
-                // Ocultar bloque de carga y mostrar resultados
                 estado.style.display = "none";
                 document.getElementById("tabla-dinamica").style.display = "table";
 
@@ -135,10 +126,10 @@ a
             }
         }
 
-        // Ejecutar proceso
         cargarTabla();
     </script>
 
 </body>
 </html>
+
 
