@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 1
+Flotante 2
 
 
 </BR></BR></BR>
@@ -19,29 +19,23 @@ Flotante 1
             box-sizing: border-box;
         }
 
+        /* Congelar el viewport para que la barra NUNCA se mueva */
         html, body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* El body no se desplaza */
             background-color: #f8fafc;
             color: #1e293b;
             font-family: sans-serif;
         }
 
-        body {
-            padding: 15px;
-            padding-top: 65px; /* Espacio para que el contenido no quede oculto tras la barra flotante */
-            overflow-x: hidden;
-        }
-
-        h2 { color: #0f172a; margin: 0 0 15px 0; }
-
-        /* BARRA FLOTANTE PERMANENTE E INDEPENDIENTE DEL ZOOM */
+        /* BARRA FLOTANTE REALMENTE INAMOVIBLE EN EL VIEWPORT */
         .controles-paginado-flotantes {
             position: fixed !important;
             top: 12px !important;
-            right: 12px !important;
+            right: 15px !important;
             z-index: 999999 !important;
             display: flex;
             align-items: center;
@@ -51,7 +45,7 @@ Flotante 1
             border-radius: 8px;
             box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
             border: 1px solid #cbd5e1;
-            transform: none !important; /* Previene cualquier conflicto de escala */
+            transform: none !important;
         }
 
         .btn-nav {
@@ -87,6 +81,17 @@ Flotante 1
             white-space: nowrap;
         }
 
+        /* CONTENEDOR INDEPENDIENTE CON SCROLL VERTICAL Y HORIZONTAL */
+        #marco-scroll {
+            width: 100vw;
+            height: 100vh;
+            overflow: auto; /* El scroll ocurre únicamente dentro de este marco */
+            padding: 15px;
+            padding-top: 65px; /* Espacio para no solaparse con la barra flotante */
+        }
+
+        h2 { color: #0f172a; margin: 0 0 15px 0; }
+
         #mensaje-estado { 
             padding: 15px; 
             border-radius: 6px; 
@@ -95,12 +100,6 @@ Flotante 1
             background-color: #e2e8f0; 
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
-
-        /* MARCO CONTENEDOR INDEPENDIENTE PARA TABLA Y ZOOM */
-        #marco-scroll {
-            width: 100%;
-            overflow-x: auto;
-        }
 
         #contenedor-escalado {
             display: inline-block;
@@ -116,7 +115,7 @@ Flotante 1
             border-radius: 8px; 
             visibility: hidden; 
             table-layout: fixed; 
-            transition: transform 0.3s ease;
+            transition: transform 0.2s ease-out;
         }
         
         th, td { 
@@ -130,7 +129,7 @@ Flotante 1
             position: relative;   
         }
 
-        /* ANCHOS DE COLUMNAS */
+        /* ANCHOS DE COLUMNAS DEFINIDOS */
         .col-28 {
             width: 28px !important;
             min-width: 28px !important;
@@ -151,18 +150,18 @@ Flotante 1
 </head>
 <body>
 
-    <!-- BARRA FLOTANTE FIJA EN PANTALLA (Inamovible) -->
+    <!-- BARRA FLOTANTE FIJA E INAMOVIBLE EN PANTALLA -->
     <div class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
     </div>
 
-    <h2>Mis Datos en Tiempo Real</h2>
-
-    <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
-    
+    <!-- MARCO CON SCROLL INDEPENDIENTE PARA LA TABLA -->
     <div id="marco-scroll">
+        <h2>Mis Datos en Tiempo Real</h2>
+        <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
+        
         <div id="contenedor-escalado">
             <table id="tabla-dinamica">
                 <thead></thead>
@@ -175,7 +174,7 @@ Flotante 1
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        // 1: Iniciar por defecto en el bloque derecho (Cols 18 en adelante)
+        // Iniciar en bloque 1 (Página derecha: Cols 18 en adelante)
         let bloqueActual = 1; 
         const LIMITE_PRIMER_BLOQUE = 17;
 
@@ -193,6 +192,11 @@ Flotante 1
 
             const primeraFila = tabla.querySelector("tr");
             if (!primeraFila) return;
+
+            // Reset temporal de transformaciones para medir de forma limpia y exacta los anchos reales
+            tabla.style.transform = "none";
+            contenedor.style.zoom = "1";
+            contenedor.style.transform = "none";
 
             const celdas = primeraFila.children;
             const totalColumnas = celdas.length;
@@ -215,7 +219,7 @@ Flotante 1
             let desplazamientoX = 0;
 
             if (bloqueActual === 0) {
-                // PRIMER BLOQUE (Col 1 a 17)
+                // PRIMER BLOQUE (Cols 1 a 17)
                 anchoObjetivo = anchoBloque1;
                 desplazamientoX = 0;
 
@@ -223,7 +227,7 @@ Flotante 1
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${Math.min(LIMITE_PRIMER_BLOQUE, totalColumnas)}`;
             } else {
-                // SEGUNDO BLOQUE (Col 18 en adelante)
+                // SEGUNDO BLOQUE (Cols 18 en adelante)
                 anchoObjetivo = anchoBloque2;
                 desplazamientoX = -anchoBloque1;
 
@@ -234,9 +238,10 @@ Flotante 1
 
             if (anchoObjetivo === 0) return;
 
+            // Recalcular la escala óptima exacta para maximizar la página activa en pantalla
             const escala = anchoDisponible / anchoObjetivo;
 
-            // Aplica el Zoom y Desplazamiento únicamente al contenedor interno de la tabla
+            // Aplicar escala y traslación
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
                 tabla.style.transform = `translateX(${desplazamientoX}px)`;
@@ -334,3 +339,4 @@ Flotante 1
 
 </body>
 </html>
+
