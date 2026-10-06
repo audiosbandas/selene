@@ -22,6 +22,32 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh
 
 
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabla Dinámica - Diagnóstico Avanzado</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; font-family: sans-serif; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .consola-debug { background: #222; color: #00ff00; padding: 15px; font-family: monospace; border-radius: 5px; margin: 10px 0; white-space: pre-wrap; }
+        .error { color: #ff3333; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>Estado de la Conexión con Google Sheets</h2>
+    
+    <!-- Caja de texto en pantalla para ver el error sin abrir F12 -->
+    <div id="debug" class="consola-debug">Iniciando conexión...</div>
+
+    <table id="tabla-dinamica" style="display:none;">
+        <thead></thead>
+        <tbody></tbody>
+    </table>
+
 <script>
     // PEGA AQUÍ EL ENLACE COMPLETO QUE TE DIO GOOGLE AL "PUBLICAR EN LA WEB"
     const URL_PUBLICADA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw/pub?gid=1726751477&single=true&output=csv';
@@ -81,6 +107,11 @@ https://docs.google.com/spreadsheets/d/e/2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh
 
     cargarTabla();
 </script>
+
+
+</body>
+</html>
+
 
 
 
