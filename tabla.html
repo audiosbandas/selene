@@ -17,119 +17,65 @@ gid=
 
 
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla Dinámica - Diagnóstico Avanzado</title>
-    <style>
-        table { border-collapse: collapse; width: 100%; font-family: sans-serif; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; font-weight: bold; }
-        .consola-debug { background: #222; color: #00ff00; padding: 15px; font-family: monospace; border-radius: 5px; margin: 10px 0; white-space: pre-wrap; }
-        .error { color: #ff3333; font-weight: bold; }
-    </style>
-</head>
-<body>
+<script>
+    // PEGA AQUÍ EL ENLACE COMPLETO QUE TE DIO GOOGLE AL "PUBLICAR EN LA WEB"
+    const URL_PUBLICADA = 'AQUÍ_PEGA_EL_ENLACE_QUE_TERMINA_EN_OUT_CSV_O_GID';
 
-    <h2>Estado de la Conexión con Google Sheets</h2>
-    
-    <!-- Caja de texto en pantalla para ver el error sin abrir F12 -->
-    <div id="debug" class="consola-debug">Iniciando conexión...</div>
+    async function cargarTabla() {
+        const div = document.getElementById("debug");
+        try {
+            div.innerText = "Conectando mediante enlace público...";
+            const respuesta = await fetch(URL_PUBLICADA);
+            
+            if (!respuesta.ok) throw new Error("No se pudo conectar con el enlace de publicación.");
+            
+            const datosTexto = await respuesta.text();
+            div.innerText = "Procesando datos...";
 
-    <table id="tabla-dinamica" style="display:none;">
-        <thead></thead>
-        <tbody></tbody>
-    </table>
+            // Procesar filas (separar por saltos de línea)
+            const filas = datosTexto.split(\(/\r\)?\n/).map(fila => {
+                // Separar por comas respetando textos con comas internas
+                const coincidencias = fila.match(/(".*?"|[^",\s]+|(?<=,)(?=,))/g);
+                return coincidencias ? coincidencias.map(celda => celda.replace(/^"(.*)"\$/, '\$1').trim()) : [];
+            });
 
-    <script>
-        // 1. REEMPLAZA EL ID DE TU PLANILLA (Asegúrate de que no haya espacios)
-        const SHEET_ID = '1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw';
-        
-        // 2. REEMPLAZA POR EL NÚMERO DE GID DE TU PESTAÑA (Ej: 153942058)
-        const SHEET_GID = '1726751477'; 
+            const tablaHead = document.querySelector("#tabla-dinamica thead");
+            const tablaBody = document.querySelector("#tabla-dinamica tbody");
+            
+            tablaHead.innerHTML = "";
+            tablaBody.innerHTML = "";
 
-        const url = `https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
+            // Crear encabezados
+            let htmlHead = "<tr>";
+            filas[0].forEach(columna => {
+                htmlHead += `<th>${columna || ''}</th>`;
+            });
+            htmlHead += "</tr>";
+            tablaHead.innerHTML = htmlHead;
 
-        function imprimirConsola(mensaje, esError = false) {
-            const div = document.getElementById("debug");
-            if (esError) {
-                div.innerHTML = `<span class="error">[ERROR] ${mensaje}</span>`;
-            } else {
-                div.innerText = mensaje;
-            }
-        }
-
-        async function cargarTabla() {
-            try {
-                imprimirConsola("Conectando con los servidores de Google...");
-                const respuesta = await fetch(url);
+            // Crear filas de datos
+            for (let i = 1; i < filas.length; i++) {
+                if (filas[i].length === 0 || (filas[i].length === 1 && filas[i][0] === "")) continue;
                 
-                if (!respuesta.ok) {
-                    throw new Error(`Google respondió con código de estado: ${respuesta.status}. Verifica que el ID de la planilla sea correcto.`);
-                }
-                
-                const datosTexto = await respuesta.text();
-                
-                // Si Google nos devuelve HTML en vez de un CSV, es porque la hoja es privada y pide login
-                if (datosTexto.trim().startsWith("<!DOCTYPE html>") || datosTexto.includes("sign-in")) {
-                    throw new Error("La planilla está bloqueada. Cambia los accesos en Google Sheets a: 'Cualquier persona con el enlace' en rol de Lector.");
-                }
-
-                imprimirConsola("Datos recibidos. Procesando filas y columnas...");
-
-                // Procesamiento seguro de CSV utilizando expresiones regulares avanzadas
-                const filas = datosTexto.split(\(/\r\)?\n/).map(fila => {
-                    // Este regex separa por comas respetando los textos con comas internas
-                    const coincidencias = fila.match(/(".*?"|[^",\s]+|(?<=,)(?=,))/g);
-                    return coincidencias ? coincidencias.map(celda => celda.replace(/^"(.*)"\$/, '\$1').trim()) : [];
+                let htmlFila = "<tr>";
+                filas[i].forEach(celda => {
+                    htmlFila += `<td>${celda || ''}</td>`;
                 });
-
-                if (filas.length === 0 || filas[0].length === 0) {
-                    throw new Error("El documento parece estar vacío o no se pudo interpretar.");
-                }
-
-                const tablaHead = document.querySelector("#tabla-dinamica thead");
-                const tablaBody = document.querySelector("#tabla-dinamica tbody");
-                
-                tablaHead.innerHTML = "";
-                tablaBody.innerHTML = "";
-
-                // 1. Crear fila de encabezados
-                let htmlHead = "<tr>";
-                filas[0].forEach(columna => {
-                    htmlHead += `<th>${columna || ''}</th>`;
-                });
-                htmlHead += "</tr>";
-                tablaHead.innerHTML = htmlHead;
-
-                // 2. Crear las filas de contenido
-                for (let i = 1; i < filas.length; i++) {
-                    if (filas[i].length === 0 || (filas[i].length === 1 && filas[i][0] === "")) continue;
-                    
-                    let htmlFila = "<tr>";
-                    filas[i].forEach(celda => {
-                        htmlFila += `<td>${celda || ''}</td>`;
-                    });
-                    htmlFila += "</tr>";
-                    tablaBody.innerHTML += htmlFila;
-                }
-
-                // Mostrar tabla y ocultar caja de carga si todo sale bien
-                document.getElementById("tabla-dinamica").style.display = "table";
-                imprimirConsola("¡Conexión exitosa! Datos cargados en tiempo real.");
-
-            } catch (error) {
-                console.error(error);
-                imprimirConsola(error.message, true);
+                htmlFila += "</tr>";
+                tablaBody.innerHTML += htmlFila;
             }
+
+            document.getElementById("tabla-dinamica").style.display = "table";
+            div.innerText = "¡Conexión exitosa! Datos cargados.";
+
+        } catch (error) {
+            console.error(error);
+            div.innerHTML = `<span class="error">[ERROR] ${error.message}</span>`;
         }
+    }
 
-        cargarTabla();
-    </script>
+    cargarTabla();
+</script>
 
-</body>
-</html>
 
 
