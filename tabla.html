@@ -20,17 +20,20 @@ gid=1726751477
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla Dinámica Inmune a Cambios de Nombre</title>
+    <title>Tabla Dinámica por GID (Sin Bloqueos)</title>
     <style>
         table { border-collapse: collapse; width: 100%; font-family: sans-serif; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .error { color: red; font-family: sans-serif; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h2>Datos desde GID Fijo</h2>
+    <h2>Datos desde GID (Conexión Segura)</h2>
     
+    <div id="mensaje-error" class="error"></div>
+
     <table id="tabla-dinamica">
         <thead></thead>
         <tbody></tbody>
@@ -40,21 +43,22 @@ gid=1726751477
         // 1. REEMPLAZA EL ID DE TU PLANILLA
         const SHEET_ID = '1DRChwZeVhSiygi1KpmHlf9rNkUUrwzDtGcTFckTHAkw';
         
-        // 2. REEMPLAZA POR EL NÚMERO DE GID DE TU PESTAÑA (Ej: 14859632)
+        // 2. REEMPLAZA POR EL NÚMERO DE GID DE TU PESTAÑA (Ej: 198547632)
         const SHEET_GID = '1726751477'; 
         
-        // Estructura de URL alternativa que acepta el parámetro gid para exportación directa
-        const url = `https://google.com{SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
+        // Esta URL usa la API de gráficos de Google, compatible con CORS y acepta el parámetro gid
+        const url = `https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
 
         async function cargarTabla() {
             try {
                 const respuesta = await fetch(url);
-                if (!respuesta.ok) throw new Error("No se pudo conectar con Google Sheets");
+                if (!respuesta.ok) throw new Error("No se pudo conectar con Google Sheets. Verifica el ID.");
                 
                 const datosTexto = await respuesta.text();
                 
-                // Dividir el texto en filas y limpiar comillas automáticas de Google
+                // Procesar el texto CSV separando por filas
                 const filas = datosTexto.split('\n').map(fila => {
+                    // Limpia las comillas que Google Sheets añade automáticamente a los textos
                     return fila.split(',').map(celda => celda.replace(/^"(.*)"\$/, '\$1').trim());
                 });
 
@@ -64,7 +68,7 @@ gid=1726751477
                 tablaHead.innerHTML = "";
                 tablaBody.innerHTML = "";
 
-                // Crear los encabezados (Fila 0)
+                // 1. Crear fila de encabezados (Fila 0)
                 const encabezados = filas[0];
                 let htmlHead = "<tr>";
                 encabezados.forEach(columna => {
@@ -73,9 +77,9 @@ gid=1726751477
                 htmlHead += "</tr>";
                 tablaHead.innerHTML = htmlHead;
 
-                // Crear las filas de datos
+                // 2. Crear las filas de contenido
                 for (let i = 1; i < filas.length; i++) {
-                    if (filas[i].length === 1 && filas[i][0] === "") continue; 
+                    if (filas[i].length === 1 && filas[i][0] === "") continue; // Ignorar filas vacías
                     
                     let htmlFila = "<tr>";
                     filas[i].forEach(celda => {
@@ -86,7 +90,8 @@ gid=1726751477
                 }
 
             } catch (error) {
-                console.error("Error al obtener los datos:", error);
+                console.error("Error detectado:", error);
+                document.getElementById("mensaje-error").innerText = "Error al cargar los datos. Revisa la consola (F12) o verifica que la planilla sea pública.";
             }
         }
 
@@ -95,3 +100,4 @@ gid=1726751477
 
 </body>
 </html>
+
