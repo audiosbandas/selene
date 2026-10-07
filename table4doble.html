@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 4
+Flotante 5
 
 
 </BR></BR></BR>
@@ -12,11 +12,14 @@ Flotante 4
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- FORZAR AL NAVEGADOR A NO USAR CACHÉ DE LA PÁGINA -->
+    <!-- EVITAR CACHÉ EN EL NAVEGADOR -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    
+    <!-- VIEWPORT TOTALMENTE PERMISIVO PARA ZOOM TÁCTIL NATIVO -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <style>
         * {
@@ -27,34 +30,31 @@ Flotante 4
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%;
+            min-height: 100%;
             background-color: #f8fafc;
             color: #1e293b;
             font-family: sans-serif;
-            overflow-x: hidden;
         }
 
         body {
             padding: 15px;
-            padding-top: 65px;
         }
 
-        /* BARRA FLOTANTE FIJA */
+        /* BARRA DE CONTROLES FLOTANTE CON POSITION STICKY (INMUNE A CONFLICTOS DE ZOOM) */
         .controles-paginado-flotantes {
-            position: fixed;
+            position: sticky;
             top: 10px;
-            right: 10px;
-            z-index: 9999999;
+            float: right;
+            z-index: 999999;
             display: flex;
             align-items: center;
             gap: 8px;
             background-color: #ffffff;
-            padding: 6px 10px;
+            padding: 6px 12px;
             border-radius: 8px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
             border: 1px solid #cbd5e1;
-            transform-origin: top right;
-            will-change: transform;
+            margin-bottom: 15px;
         }
 
         .btn-nav {
@@ -92,7 +92,11 @@ Flotante 4
             white-space: nowrap;
         }
 
-        h2 { color: #0f172a; margin: 0 0 15px 0; }
+        h2 { 
+            color: #0f172a; 
+            margin: 0 0 15px 0; 
+            clear: left;
+        }
 
         #mensaje-estado { 
             padding: 15px; 
@@ -103,11 +107,14 @@ Flotante 4
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
 
-        #contenedor-escalado {
-            display: inline-block;
-            width: max-content;
-            transform-origin: top left;
-            touch-action: pan-y; /* Permite scroll vertical mientras captura gestos horizontales */
+        /* CONTENEDOR CON DESPLAZAMIENTO NATIVO SUAVE */
+        #marco-scroll {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            padding-bottom: 10px;
         }
 
         table { 
@@ -118,7 +125,6 @@ Flotante 4
             border-radius: 8px; 
             visibility: hidden; 
             table-layout: fixed; 
-            transition: transform 0.2s ease-out;
         }
         
         th, td { 
@@ -129,7 +135,6 @@ Flotante 4
             white-space: nowrap;  
             overflow: hidden;    
             text-overflow: ellipsis;  
-            position: relative;   
         }
 
         .col-28 {
@@ -152,8 +157,8 @@ Flotante 4
 </head>
 <body>
 
-    <!-- BARRA FLOTANTE CONTROLADA POR VISUAL VIEWPORT -->
-    <div id="barra-flotante" class="controles-paginado-flotantes">
+    <!-- CONTROLES FLOTANTES -->
+    <div class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
@@ -162,7 +167,8 @@ Flotante 4
     <h2>Mis Datos en Tiempo Real</h2>
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
-    <div id="contenedor-escalado">
+    <!-- MARCO CON SCROLL/DESPLAZAMIENTO LIBRE -->
+    <div id="marco-scroll">
         <table id="tabla-dinamica">
             <thead></thead>
             <tbody></tbody>
@@ -170,7 +176,7 @@ Flotante 4
     </div>
 
     <script>
-        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ AL INICIAR LA PÁGINA ---
+        // --- LIMPIEZA DE CACHÉ ---
         (async function borrarCachePagina() {
             try {
                 if ('caches' in window) {
@@ -179,76 +185,24 @@ Flotante 4
                 }
                 sessionStorage.clear();
             } catch (e) {
-                console.warn("No se pudo borrar parte de la caché local:", e);
+                console.warn("No se pudo borrar la caché local:", e);
             }
         })();
 
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
+        let bloqueActual = 0; // 0 = Izquierda (Cols 1-17), 1 = Derecha (Cols 18+)
         const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
-        const ANCHO_COL_18_MAS = 64;
 
-        // --- 2. CONTROL VISUAL VIEWPORT (ZOOM TÁCTIL Y SEGUIMIENTO) ---
-        function reajustarBarraFlotante() {
-            const barra = document.getElementById('barra-flotante');
-            if (!barra) return;
-
-            if (window.visualViewport) {
-                const scale = window.visualViewport.scale;
-                const offsetLeft = window.visualViewport.offsetLeft;
-                const offsetTop = window.visualViewport.offsetTop;
-
-                barra.style.transform = `translate(${offsetLeft}px, ${offsetTop}px) scale(${1 / scale})`;
-            }
-        }
-
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('scroll', reajustarBarraFlotante);
-            window.visualViewport.addEventListener('resize', reajustarBarraFlotante);
-        }
-        window.addEventListener('scroll', reajustarBarraFlotante);
-
-        // --- 3. GESTOS TÁCTILES DE DESPLAZAMIENTO (SWIPE) ENTRE PÁGINAS ---
-        let startX = 0;
-        let startY = 0;
-        const contenedorEscalado = document.getElementById('contenedor-escalado');
-
-        contenedorEscalado.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }
-        }, { passive: true });
-
-        contenedorEscalado.addEventListener('touchend', (e) => {
-            if (e.changedTouches.length === 1) {
-                const diffX = e.changedTouches[0].clientX - startX;
-                const diffY = e.changedTouches[0].clientY - startY;
-
-                // Verificar que la intención del usuario sea un desplazamiento horizontal y no vertical
-                if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-                    if (diffX < 0 && bloqueActual === 0) {
-                        // Swipe hacia la izquierda: Ir a la página Derecha
-                        cambiarBloque(1);
-                    } else if (diffX > 0 && bloqueActual === 1) {
-                        // Swipe hacia la derecha: Ir a la página Izquierda
-                        cambiarBloque(-1);
-                    }
-                }
-            }
-        }, { passive: true });
-
-        // --- 4. NAVEGACIÓN Y ESCALADO OPTIMIZADO ---
         function cambiarBloque(direccion) {
             bloqueActual += direccion;
-            aplicarZoomOptimo();
+            desplazarABloque();
         }
 
-        function aplicarZoomOptimo() {
-            const contenedor = document.getElementById("contenedor-escalado");
+        function desplazarABloque() {
+            const marco = document.getElementById("marco-scroll");
             const tabla = document.getElementById("tabla-dinamica");
             const btnPrev = document.getElementById("btn-prev");
             const btnNext = document.getElementById("btn-next");
@@ -258,60 +212,55 @@ Flotante 4
             if (!primeraFila) return;
 
             const totalColumnas = primeraFila.children.length;
-
             const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
-            const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
-
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
-            const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
-
-            const anchoVisibleReal = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-            const anchoDisponible = anchoVisibleReal - 30;
-
-            let anchoObjetivo = 0;
-            let desplazamientoX = 0;
 
             if (bloqueActual === 0) {
-                // PÁGINA IZQUIERDA (Cols 1 a 17)
-                anchoObjetivo = anchoBloque1;
-                desplazamientoX = 0;
-
+                // Ir a la izquierda
+                marco.scrollLeft = 0;
                 btnPrev.disabled = true;
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${colsBloque1}`;
             } else {
-                // PÁGINA DERECHA (Cols 18 en adelante)
-                anchoObjetivo = anchoBloque2;
-                desplazamientoX = -anchoBloque1;
-
+                // Ir a la derecha (desplazar el ancho del bloque 1)
+                marco.scrollLeft = anchoBloque1;
                 btnPrev.disabled = false;
                 btnNext.disabled = true;
                 indicador.innerText = `Cols ${LIMITE_PRIMER_BLOQUE + 1} - ${totalColumnas}`;
             }
 
-            if (anchoObjetivo === 0) return;
-
-            const escala = anchoDisponible / anchoObjetivo;
-
-            if ('zoom' in contenedor.style) {
-                contenedor.style.zoom = escala;
-                tabla.style.transform = `translateX(${desplazamientoX}px)`;
-            } else {
-                contenedor.style.transform = `scale(${escala})`;
-                tabla.style.transform = `translateX(${desplazamientoX}px)`;
-                contenedor.style.width = `${(anchoBloque1 + anchoBloque2)}px`;
-            }
-
             tabla.style.visibility = "visible";
-            reajustarBarraFlotante();
         }
+
+        // Actualizar automáticamente los botones si el usuario se desplaza deslizando el dedo libremente
+        document.getElementById("marco-scroll").addEventListener("scroll", () => {
+            const marco = document.getElementById("marco-scroll");
+            const tabla = document.getElementById("tabla-dinamica");
+            const primeraFila = tabla.querySelector("tr");
+            if (!primeraFila) return;
+
+            const totalColumnas = primeraFila.children.length;
+            const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
+            const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
+
+            if (marco.scrollLeft < anchoBloque1 / 2) {
+                bloqueActual = 0;
+                document.getElementById("btn-prev").disabled = true;
+                document.getElementById("btn-next").disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
+                document.getElementById("indicador-bloque").innerText = `Cols 1 - ${colsBloque1}`;
+            } else {
+                bloqueActual = 1;
+                document.getElementById("btn-prev").disabled = false;
+                document.getElementById("btn-next").disabled = true;
+                document.getElementById("indicador-bloque").innerText = `Cols ${LIMITE_PRIMER_BLOQUE + 1} - ${totalColumnas}`;
+            }
+        });
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
             try {
                 estado.innerText = "Descargando información en tiempo real...";
 
-                // Añadir parámetro nocache único para forzar respuesta fresca desde la red
                 const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Date.now()}`;
 
                 const respuesta = await fetch(urlDirecta, {
@@ -377,7 +326,7 @@ Flotante 4
                 }
 
                 estado.style.display = "none";
-                aplicarZoomOptimo();
+                desplazarABloque();
 
             } catch (error) {
                 console.error("Detalle:", error);
@@ -386,12 +335,12 @@ Flotante 4
             }
         }
 
-        window.addEventListener("resize", aplicarZoomOptimo);
         cargarTabla();
     </script>
 
 </body>
 </html>
+
 
 
 
