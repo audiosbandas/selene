@@ -1,0 +1,558 @@
+
+
+gémini 1 Desborda Clau + Filas vacías gemi
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- FORZAR AL NAVEGADOR A NO USAR CACHÉ DE LA PÁGINA -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Zoom nativo desactivado: el zoom de la tabla es simulado por el propio código -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tabla Dinámica Paginada - Google Sheets</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            touch-action: pan-x pan-y; /* permite desplazarse, bloquea el zoom nativo por pellizco/doble toque */
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-family: sans-serif;
+        }
+
+        body {
+            padding: 15px;
+            padding-top: 65px;
+            min-height: 100vh;
+        }
+
+        /* BARRA FLOTANTE FIJA */
+        .controles-paginado-flotantes {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9999999;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #ffffff;
+            padding: 6px 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            border: 1px solid #cbd5e1;
+            transform-origin: top right;
+            will-change: transform;
+        }
+
+        .btn-nav {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-nav:hover:not(:disabled) {
+            background-color: #1d4ed8;
+        }
+
+        .btn-nav:disabled {
+            background-color: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .indicador-bloque {
+            font-weight: bold;
+            color: #475569;
+            font-size: 0.85rem;
+            min-width: 85px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        h2 { color: #0f172a; margin: 0 0 15px 0; }
+
+        #mensaje-estado {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            background-color: #e2e8f0;
+        }
+        .error { background-color: #fee2e2 !important; color: #991b1b; }
+
+        /* Visor con desplazamiento táctil horizontal sobre la tabla completa */
+        #visor-tabla {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+        }
+
+        /* Contenedor SIN restricciones de gestos: permite pellizco, scroll y paneo natural */
+        #contenedor-escalado {
+            display: block;
+            width: max-content;
+            transform-origin: top left;
+            touch-action: pan-x pan-y;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: max-content;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            visibility: hidden;
+            table-layout: fixed;
+            transform-origin: top left;
+        }
+
+        th, td {
+            font-size: 0.9rem;
+            padding: 8px 0px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+            overflow: visible; /* el texto puede traspasar el ancho de la celda */
+            position: relative;
+        }
+
+        /* Contenedor de altura fija: el alto de la fila no depende del texto */
+        .celda {
+            position: relative;
+            height: 1.3em;
+            line-height: 1.3;
+        }
+
+        /* El texto sale del flujo de la celda, alineado a la izquierda.
+           Su ancho máximo (inline) = celda + celdas vecinas vacías a la derecha */
+        .celda > span {
+            position: absolute;
+            top: 0;
+            left: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .col-28 {
+            width: 28px !important;
+            min-width: 28px !important;
+            max-width: 28px !important;
+            padding: 6px 0px;
+            font-size: 0.8rem;
+        }
+
+        .col-64 {
+            width: 64px !important;
+            min-width: 64px !important;
+            max-width: 64px !important;
+        }
+
+        th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
+        tr:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA FLOTANTE CONTROLADA POR VISUAL VIEWPORT -->
+    <div id="barra-flotante" class="controles-paginado-flotantes">
+        <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
+        <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
+        <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
+    </div>
+
+    <h2>Mis Datos en Tiempo Real</h2>
+    <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
+
+    <div id="visor-tabla">
+        <div id="contenedor-escalado">
+            <table id="tabla-dinamica">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ AL INICIAR LA PÁGINA ---
+        (async function borrarCachePagina() {
+            try {
+                if ('caches' in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(key => caches.delete(key)));
+                }
+                sessionStorage.clear();
+            } catch (e) {
+                console.warn("No se pudo borrar parte de la caché local:", e);
+            }
+        })();
+
+        const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
+        const GID = '1726751477';
+
+        let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
+        let totalColumnas = 0;
+        const LIMITE_PRIMER_BLOQUE = 17;
+        const ANCHO_COL_1_17 = 28;
+        const ANCHO_COL_18_MAS = 64;
+
+        // --- 2. BARRA FLOTANTE: SIGUE AL VISUAL VIEWPORT (ZOOM Y PANEO TÁCTIL) ---
+        function reajustarBarraFlotante() {
+            const barra = document.getElementById('barra-flotante');
+            if (!barra || !window.visualViewport) return;
+
+            const vv = window.visualViewport;
+            const anchoLayout = document.documentElement.clientWidth;
+
+            const desplX = vv.offsetLeft + vv.width - anchoLayout;
+            const desplY = vv.offsetTop;
+
+            barra.style.transform = `translate(${desplX}px, ${desplY}px) scale(${1 / vv.scale})`;
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('scroll', reajustarBarraFlotante);
+            window.visualViewport.addEventListener('resize', reajustarBarraFlotante);
+        }
+        window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
+
+        // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
+        let zoomUsuario = 1;
+        let escalaBase = 1;
+        const ZOOM_MAXIMO = 8;
+
+        function cambiarBloque(direccion) {
+            const nuevo = bloqueActual + direccion;
+            if (nuevo < 0 || nuevo > 1) return;
+            if (nuevo === 1 && totalColumnas <= LIMITE_PRIMER_BLOQUE) return;
+            bloqueActual = nuevo;
+
+            zoomUsuario = 1;
+            aplicarZoomOptimo();
+
+            reajustarBarraFlotante();
+        }
+
+        function escalaActual() {
+            return escalaBase * zoomUsuario;
+        }
+
+        function aplicarEscala(escala) {
+            const contenedor = document.getElementById("contenedor-escalado");
+            const tabla = document.getElementById("tabla-dinamica");
+
+            if ('zoom' in contenedor.style) {
+                contenedor.style.zoom = escala;
+                contenedor.style.width = "";
+                contenedor.style.height = "";
+                tabla.style.transform = "";
+            } else {
+                const anchoTotal = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE) * ANCHO_COL_1_17
+                    + Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE) * ANCHO_COL_18_MAS;
+                tabla.style.transform = `scale(${escala})`;
+                contenedor.style.width = `${anchoTotal * escala}px`;
+                contenedor.style.height = `${tabla.offsetHeight * escala}px`;
+            }
+        }
+
+        function aplicarZoomOptimo() {
+            const visor = document.getElementById("visor-tabla");
+            const tabla = document.getElementById("tabla-dinamica");
+            const btnPrev = document.getElementById("btn-prev");
+            const btnNext = document.getElementById("btn-next");
+            const indicador = document.getElementById("indicador-bloque");
+
+            if (!totalColumnas) return;
+
+            const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
+            const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
+
+            const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
+            const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
+
+            const anchoDisponible = document.documentElement.clientWidth - 30;
+
+            let anchoObjetivo;
+            let inicioBloque;
+
+            if (bloqueActual === 0) {
+                anchoObjetivo = anchoBloque1;
+                inicioBloque = 0;
+                btnPrev.disabled = true;
+                btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
+                indicador.innerText = `Cols 1 - ${colsBloque1}`;
+            } else {
+                anchoObjetivo = anchoBloque2;
+                inicioBloque = anchoBloque1;
+                btnPrev.disabled = false;
+                btnNext.disabled = true;
+                indicador.innerText = `Cols ${LIMITE_PRIMER_BLOQUE + 1} - ${totalColumnas}`;
+            }
+
+            if (anchoObjetivo === 0) return;
+
+            escalaBase = anchoDisponible / anchoObjetivo;
+            aplicarEscala(escalaActual());
+
+            tabla.style.visibility = "visible";
+            visor.scrollLeft = inicioBloque * escalaActual();
+
+            reajustarBarraFlotante();
+        }
+
+        // --- 3b. ZOOM POR PELLIZCO SIMULADO ---
+        let pellizco = null;
+        let cuadroPendiente = false;
+        let ultimoPunto = null;
+
+        function distanciaDedos(toques) {
+            return Math.hypot(toques[0].clientX - toques[1].clientX, toques[0].clientY - toques[1].clientY);
+        }
+
+        function puntoMedio(toques) {
+            return {
+                x: (toques[0].clientX + toques[1].clientX) / 2,
+                y: (toques[0].clientY + toques[1].clientY) / 2
+            };
+        }
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 2 || !totalColumnas) {
+                if (e.touches.length > 2) pellizco = null;
+                return;
+            }
+
+            const visor = document.getElementById("visor-tabla");
+            const r = visor.getBoundingClientRect();
+            const p = puntoMedio(e.touches);
+            const escala0 = escalaActual();
+
+            pellizco = {
+                d0: distanciaDedos(e.touches),
+                zoom0: zoomUsuario,
+                izquierdaVisor: r.left,
+                contenidoX: (visor.scrollLeft + p.x - r.left) / escala0,
+                contenidoY: (p.y - r.top) / escala0,
+                topPagina: r.top + window.scrollY
+            };
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!pellizco || e.touches.length !== 2) return;
+
+            if (e.cancelable) e.preventDefault();
+
+            const d = distanciaDedos(e.touches);
+            zoomUsuario = Math.min(ZOOM_MAXIMO, Math.max(1, pellizco.zoom0 * (d / pellizco.d0)));
+            ultimoPunto = puntoMedio(e.touches);
+
+            if (cuadroPendiente) return;
+            cuadroPendiente = true;
+
+            requestAnimationFrame(() => {
+                cuadroPendiente = false;
+                if (!pellizco || !ultimoPunto) return;
+
+                const visor = document.getElementById("visor-tabla");
+                const escala = escalaActual();
+
+                aplicarEscala(escala);
+
+                visor.scrollLeft = pellizco.contenidoX * escala - (ultimoPunto.x - pellizco.izquierdaVisor);
+                window.scrollTo(window.scrollX, pellizco.contenidoY * escala + pellizco.topPagina - ultimoPunto.y);
+            });
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) pellizco = null;
+        }, { passive: true });
+
+        document.addEventListener('touchcancel', () => { pellizco = null; }, { passive: true });
+
+        ['gesturestart', 'gesturechange', 'gestureend'].forEach((nombre) => {
+            document.addEventListener(nombre, (e) => e.preventDefault(), { passive: false });
+        });
+
+        // --- 4. LECTOR CSV CON SOPORTE DE FILAS VACÍAS Y RECORTE FINAL ---
+        function parsearCSV(texto) {
+            const filas = [];
+            let fila = [];
+            let celda = "";
+            let enComillas = false;
+
+            for (let i = 0; i < texto.length; i++) {
+                const c = texto[i];
+
+                if (enComillas) {
+                    if (c === '"') {
+                        if (texto[i + 1] === '"') { celda += '"'; i++; }
+                        else { enComillas = false; }
+                    } else {
+                        celda += c;
+                    }
+                } else if (c === '"') {
+                    enComillas = true;
+                } else if (c === ',') {
+                    fila.push(celda.trim());
+                    celda = "";
+                } else if (c === '\n' || c === '\r') {
+                    if (c === '\r' && texto[i + 1] === '\n') i++;
+                    fila.push(celda.trim());
+                    celda = "";
+                    filas.push(fila); // Conserva las filas intermedias vacías
+                    fila = [];
+                } else {
+                    celda += c;
+                }
+            }
+            fila.push(celda.trim());
+            filas.push(fila);
+
+            // Buscar la última fila que contenga al menos una celda con datos
+            let ultimaFilaConDatos = -1;
+            for (let i = filas.length - 1; i >= 0; i--) {
+                if (filas[i].some(v => v !== "")) {
+                    ultimaFilaConDatos = i;
+                    break;
+                }
+            }
+
+            // Recortar las filas vacías que estén después de la última fila con datos
+            if (ultimaFilaConDatos !== -1) {
+                return filas.slice(0, ultimaFilaConDatos + 1);
+            }
+
+            return [];
+        }
+
+        function escaparHTML(t) {
+            return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // --- 4b. DESBORDAMIENTO DEL TEXTO SOBRE CELDAS VECINAS VACÍAS ---
+        function anchoColumna(idx) {
+            return idx < LIMITE_PRIMER_BLOQUE ? ANCHO_COL_1_17 : ANCHO_COL_18_MAS;
+        }
+
+        function anchosDisponibles(fila, totalCols) {
+            const res = new Array(totalCols).fill(0);
+            for (let i = 0; i < totalCols; i++) {
+                const val = fila[i] || "";
+                if (val === "") continue;
+                let ancho = anchoColumna(i);
+                const limite = i < LIMITE_PRIMER_BLOQUE ? Math.min(totalCols, LIMITE_PRIMER_BLOQUE) : totalCols;
+                for (let j = i + 1; j < limite && (!fila[j] || fila[j] === ""); j++) {
+                    ancho += anchoColumna(j);
+                }
+                res[i] = ancho;
+            }
+            return res;
+        }
+
+        function celdaHTML(texto, ancho) {
+            if (!texto) return '&nbsp;';
+            const maxAncho = Math.max(0, ancho - 6);
+            return `<div class="celda"><span style="max-width:${maxAncho}px">${escaparHTML(texto)}</span></div>`;
+        }
+
+        async function cargarTabla() {
+            const estado = document.getElementById("mensaje-estado");
+            try {
+                estado.innerText = "Descargando información en tiempo real...";
+
+                const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Date.now()}`;
+
+                const respuesta = await fetch(urlDirecta, {
+                    cache: 'no-store',
+                    headers: {
+                        'Pragma': 'no-cache',
+                        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
+                    }
+                });
+
+                if (!respuesta.ok) {
+                    throw new Error("Google no respondió correctamente. Revisa el enlace.");
+                }
+
+                const datosTexto = await respuesta.text();
+                estado.innerText = "Dibujando las filas de la tabla...";
+
+                const filas = parsearCSV(datosTexto);
+                if (filas.length === 0) throw new Error("La planilla no devolvió datos.");
+
+                const tablaHead = document.querySelector("#tabla-dinamica thead");
+                const tablaBody = document.querySelector("#tabla-dinamica tbody");
+
+                const claseColumna = (idx) =>
+                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
+
+                totalColumnas = filas[0].length;
+
+                // Encabezado
+                const anchosEnc = anchosDisponibles(filas[0], totalColumnas);
+                let htmlHead = "<tr>";
+                for (let idx = 0; idx < totalColumnas; idx++) {
+                    const col = filas[0][idx] || "";
+                    htmlHead += `<th ${claseColumna(idx)}>${celdaHTML(col, anchosEnc[idx])}</th>`;
+                }
+                htmlHead += "</tr>";
+                tablaHead.innerHTML = htmlHead;
+
+                // Cuerpo
+                let htmlBody = "";
+                for (let i = 1; i < filas.length; i++) {
+                    const fila = filas[i];
+                    const anchosFila = anchosDisponibles(fila, totalColumnas);
+                    htmlBody += "<tr>";
+                    for (let idx = 0; idx < totalColumnas; idx++) {
+                        const col = fila[idx] || "";
+                        htmlBody += `<td ${claseColumna(idx)}>${celdaHTML(col, anchosFila[idx])}</td>`;
+                    }
+                    htmlBody += "</tr>";
+                }
+                tablaBody.innerHTML = htmlBody;
+
+                estado.style.display = "none";
+                aplicarZoomOptimo();
+
+            } catch (error) {
+                console.error("Detalle:", error);
+                estado.classList.add("error");
+                estado.innerText = "Error: " + error.message;
+            }
+        }
+
+        let ultimoAncho = document.documentElement.clientWidth;
+        window.addEventListener("resize", () => {
+            const ancho = document.documentElement.clientWidth;
+            if (ancho !== ultimoAncho) {
+                ultimoAncho = ancho;
+                aplicarZoomOptimo();
+            }
+        });
+
+        cargarTabla();
+    </script>
+
+</body>
+</html>
