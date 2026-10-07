@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 4
+Flotante 5
 
 
 </BR></BR></BR>
@@ -234,9 +234,6 @@ Flotante 4
 
             aplicarZoomOptimo();
 
-            // Se lleva la vista al borde izquierdo de la página (también cuando hay zoom de pellizco),
-            // para que el grupo de columnas quede completo dentro de la pantalla
-            window.scrollTo(0, window.scrollY);
             reajustarBarraFlotante();
         }
 
@@ -257,14 +254,26 @@ Flotante 4
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
             const anchoTotal = anchoBloque1 + anchoBloque2;
 
-            // Ancho realmente visible en pantalla: si hay zoom de pellizco, el visual viewport
-            // es más angosto que el layout, y el grupo se ajusta a ese ancho visible.
-            // (Sin zoom, ambos valores coinciden. Funciona igual en Chrome, Safari, Firefox, Edge, Samsung.)
+            // Ancho disponible: si la página tiene zoom de pellizco, el visor se ubica exactamente
+            // sobre la zona que se está viendo (visual viewport) y toma ese ancho visible.
+            // Sin zoom, ocupa el ancho normal de la pantalla.
+            const vv = window.visualViewport;
             const anchoLayout = document.documentElement.clientWidth;
-            const anchoVisible = window.visualViewport
-                ? Math.min(window.visualViewport.width, anchoLayout)
-                : anchoLayout;
-            const anchoDisponible = Math.max(100, anchoVisible - 30);
+            const zoomPagina = vv ? vv.scale : 1;
+            let anchoDisponible;
+
+            if (vv && zoomPagina > 1.01) {
+                const margen = 15 / zoomPagina;
+                anchoDisponible = Math.max(100, vv.width - margen * 2);
+                visor.style.position = "relative";
+                visor.style.left = (vv.pageLeft + margen - 15) + "px";
+                visor.style.width = anchoDisponible + "px";
+            } else {
+                visor.style.position = "";
+                visor.style.left = "";
+                visor.style.width = "";
+                anchoDisponible = anchoLayout - 30;
+            }
 
             let anchoObjetivo;
             let inicioBloque; // posición (sin escalar) donde empieza el bloque actual
