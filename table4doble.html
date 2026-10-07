@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 4
+Flotante 5
 
 
 </BR></BR></BR>
@@ -156,7 +156,6 @@ Flotante 4
             max-width: 64px !important;
         }
 
-
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
         tr:hover { background-color: #f8fafc; }
     </style>
@@ -213,7 +212,6 @@ Flotante 4
             const vv = window.visualViewport;
             const anchoLayout = document.documentElement.clientWidth;
 
-            // Desplazamiento para que la barra quede pegada a la esquina superior derecha de lo que se ve
             const desplX = vv.offsetLeft + vv.width - anchoLayout;
             const desplY = vv.offsetTop;
 
@@ -227,8 +225,8 @@ Flotante 4
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
         // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
-        let zoomUsuario = 1;   // zoom simulado por el usuario (1 = grupo ajustado de borde a borde)
-        let escalaBase = 1;    // escala que hace entrar el grupo actual de borde a borde
+        let zoomUsuario = 1;
+        let escalaBase = 1;
         const ZOOM_MAXIMO = 8;
 
         function cambiarBloque(direccion) {
@@ -237,7 +235,6 @@ Flotante 4
             if (nuevo === 1 && totalColumnas <= LIMITE_PRIMER_BLOQUE) return;
             bloqueActual = nuevo;
 
-            // El zoom simulado vuelve a 1x y el grupo se ajusta de borde a borde
             zoomUsuario = 1;
             aplicarZoomOptimo();
 
@@ -258,7 +255,6 @@ Flotante 4
                 contenedor.style.height = "";
                 tabla.style.transform = "";
             } else {
-                // Alternativa para navegadores sin CSS zoom: se fija el tamaño real escalado
                 const anchoTotal = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE) * ANCHO_COL_1_17
                     + Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE) * ANCHO_COL_18_MAS;
                 tabla.style.transform = `scale(${escala})`;
@@ -282,11 +278,10 @@ Flotante 4
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
 
-            // La página siempre está al 100%: el ancho disponible es el ancho real de la pantalla
             const anchoDisponible = document.documentElement.clientWidth - 30;
 
             let anchoObjetivo;
-            let inicioBloque; // posición (sin escalar) donde empieza el bloque actual
+            let inicioBloque;
 
             if (bloqueActual === 0) {
                 anchoObjetivo = anchoBloque1;
@@ -304,19 +299,16 @@ Flotante 4
 
             if (anchoObjetivo === 0) return;
 
-            // Escala que hace entrar el grupo justo en el ancho de pantalla
             escalaBase = anchoDisponible / anchoObjetivo;
             aplicarEscala(escalaActual());
 
             tabla.style.visibility = "visible";
-
-            // Se posiciona el visor al inicio del bloque; el arrastre con el dedo recorre la tabla
             visor.scrollLeft = inicioBloque * escalaActual();
 
             reajustarBarraFlotante();
         }
 
-        // --- 3b. ZOOM POR PELLIZCO SIMULADO (solo sobre la tabla; la página queda al 100%) ---
+        // --- 3b. ZOOM POR PELLIZCO SIMULADO ---
         let pellizco = null;
         let cuadroPendiente = false;
         let ultimoPunto = null;
@@ -347,7 +339,6 @@ Flotante 4
                 d0: distanciaDedos(e.touches),
                 zoom0: zoomUsuario,
                 izquierdaVisor: r.left,
-                // Punto de la tabla (sin escalar) que está bajo los dedos: debe mantenerse bajo ellos
                 contenidoX: (visor.scrollLeft + p.x - r.left) / escala0,
                 contenidoY: (p.y - r.top) / escala0,
                 topPagina: r.top + window.scrollY
@@ -386,12 +377,11 @@ Flotante 4
 
         document.addEventListener('touchcancel', () => { pellizco = null; }, { passive: true });
 
-        // Safari (iOS) puede ignorar user-scalable=no: se bloquean sus gestos de zoom de página
         ['gesturestart', 'gesturechange', 'gestureend'].forEach((nombre) => {
             document.addEventListener(nombre, (e) => e.preventDefault(), { passive: false });
         });
 
-        // --- 4. LECTOR CSV (soporta comillas y comas dentro de las celdas) ---
+        // --- 4. LECTOR CSV CON SOPORTE DE FILAS INTERMEDIAS VACÍAS ---
         function parsearCSV(texto) {
             const filas = [];
             let fila = [];
@@ -417,16 +407,30 @@ Flotante 4
                     if (c === '\r' && texto[i + 1] === '\n') i++;
                     fila.push(celda.trim());
                     celda = "";
-                    if (fila.some(v => v !== "")) filas.push(fila);
+                    filas.push(fila); // Conserva todas las filas (incluso vacías)
                     fila = [];
                 } else {
                     celda += c;
                 }
             }
             fila.push(celda.trim());
-            if (fila.some(v => v !== "")) filas.push(fila);
+            filas.push(fila);
 
-            return filas;
+            // Buscar el índice de la última fila que tenga al menos una celda con algún dato
+            let ultimaFilaConDatos = -1;
+            for (let i = filas.length - 1; i >= 0; i--) {
+                if (filas[i].some(v => v !== "")) {
+                    ultimaFilaConDatos = i;
+                    break;
+                }
+            }
+
+            // Recortar la tabla hasta esa última fila con datos
+            if (ultimaFilaConDatos !== -1) {
+                return filas.slice(0, ultimaFilaConDatos + 1);
+            }
+
+            return [];
         }
 
         function escaparHTML(t) {
@@ -466,19 +470,25 @@ Flotante 4
 
                 totalColumnas = filas[0].length;
 
+                // Encabezados
                 let htmlHead = "<tr>";
-                filas[0].forEach((col, idx) => {
-                    htmlHead += `<th ${claseColumna(idx)}>${escaparHTML(col)}</th>`;
-                });
+                for (let idx = 0; idx < totalColumnas; idx++) {
+                    const col = filas[0][idx] || "";
+                    const contenido = escaparHTML(col) || '&nbsp;';
+                    htmlHead += `<th ${claseColumna(idx)}>${contenido}</th>`;
+                }
                 htmlHead += "</tr>";
                 tablaHead.innerHTML = htmlHead;
 
+                // Filas de datos
                 let htmlBody = "";
                 for (let i = 1; i < filas.length; i++) {
                     htmlBody += "<tr>";
-                    filas[i].forEach((col, idx) => {
-                        htmlBody += `<td ${claseColumna(idx)}>${escaparHTML(col)}</td>`;
-                    });
+                    for (let idx = 0; idx < totalColumnas; idx++) {
+                        const col = filas[i][idx] || "";
+                        const contenido = escaparHTML(col) || '&nbsp;';
+                        htmlBody += `<td ${claseColumna(idx)}>${contenido}</td>`;
+                    }
                     htmlBody += "</tr>";
                 }
                 tablaBody.innerHTML = htmlBody;
@@ -493,8 +503,6 @@ Flotante 4
             }
         }
 
-        // Recalcular solo si cambia el ancho real (rotación, redimensionado),
-        // no por los cambios de alto de la barra del navegador ni por el pellizco
         let ultimoAncho = document.documentElement.clientWidth;
         window.addEventListener("resize", () => {
             const ancho = document.documentElement.clientWidth;
