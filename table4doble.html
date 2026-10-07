@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 5
+Flotante 6
 
 
 </BR></BR></BR>
@@ -226,13 +226,59 @@ Flotante 5
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
         // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
+        const VIEWPORT_NORMAL = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes';
+        const VIEWPORT_BLOQUEADO = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        let reseteandoZoom = false;
+
+        // Reemplaza la etiqueta meta viewport (algunos navegadores solo reaccionan si se reemplaza el nodo)
+        function fijarMetaViewport(contenido) {
+            const viejo = document.querySelector('meta[name="viewport"]');
+            const nuevo = document.createElement('meta');
+            nuevo.name = 'viewport';
+            nuevo.content = contenido;
+            if (viejo) viejo.replaceWith(nuevo);
+            else document.head.appendChild(nuevo);
+        }
+
+        // Intenta devolver el zoom de pellizco a 100%. No existe una API estándar para esto,
+        // así que se prueba bloqueando el viewport un instante y se verifica si funcionó.
+        // Si el navegador no lo permite, queda el ajuste al área visible (ya aplicado).
+        function intentarResetearZoom() {
+            if (reseteandoZoom || !window.visualViewport) return;
+            reseteandoZoom = true;
+
+            fijarMetaViewport(VIEWPORT_BLOQUEADO);
+
+            const inicio = Date.now();
+            const verificar = setInterval(() => {
+                const logrado = window.visualViewport.scale <= 1.01;
+                const agotado = Date.now() - inicio > 900;
+
+                if (logrado || agotado) {
+                    clearInterval(verificar);
+                    fijarMetaViewport(VIEWPORT_NORMAL);
+                    // Se recalcula con el estado final: 100% si se logró, o ajuste al área visible si no
+                    setTimeout(() => {
+                        window.scrollTo(0, window.scrollY);
+                        aplicarZoomOptimo();
+                        reseteandoZoom = false;
+                    }, 120);
+                }
+            }, 60);
+        }
+
         function cambiarBloque(direccion) {
             const nuevo = bloqueActual + direccion;
             if (nuevo < 0 || nuevo > 1) return;
             if (nuevo === 1 && totalColumnas <= LIMITE_PRIMER_BLOQUE) return;
             bloqueActual = nuevo;
 
+            // 1) Ajuste inmediato al área visible (comportamiento actual)
             aplicarZoomOptimo();
+
+            // 2) Si había zoom de pellizco, se intenta volver a 100% y se reajusta el grupo
+            const escalaPagina = window.visualViewport ? window.visualViewport.scale : 1;
+            if (escalaPagina > 1.01) intentarResetearZoom();
 
             reajustarBarraFlotante();
         }
