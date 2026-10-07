@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 5
+Flotante 6
 
 
 </BR></BR></BR>
@@ -226,13 +226,39 @@ Flotante 5
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
         // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
+        // Devuelve el zoom de pellizco de la página a 1x (al cambiar el viewport un instante)
+        function resetearZoomPagina(alTerminar) {
+            const meta = document.querySelector('meta[name="viewport"]');
+            if (!meta) { alTerminar(); return; }
+
+            const original = meta.getAttribute('content');
+            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no');
+
+            setTimeout(() => {
+                meta.setAttribute('content', original);
+                alTerminar();
+            }, 150);
+        }
+
         function cambiarBloque(direccion) {
             const nuevo = bloqueActual + direccion;
             if (nuevo < 0 || nuevo > 1) return;
             if (nuevo === 1 && totalColumnas <= LIMITE_PRIMER_BLOQUE) return;
             bloqueActual = nuevo;
+
             aplicarZoomOptimo();
-            window.scrollTo(0, window.scrollY);
+
+            // Si el usuario había hecho zoom con los dedos, se vuelve a 1x para que el grupo
+            // de columnas se vea completo a lo ancho, y se recalcula el ajuste
+            const escalaPagina = window.visualViewport ? window.visualViewport.scale : 1;
+            if (escalaPagina > 1.01) {
+                resetearZoomPagina(() => {
+                    window.scrollTo(0, window.scrollY);
+                    aplicarZoomOptimo();
+                });
+            } else {
+                window.scrollTo(0, window.scrollY);
+            }
         }
 
         function aplicarZoomOptimo() {
