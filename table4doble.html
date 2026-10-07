@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 5
+Flotante 4
 
 
 </BR></BR></BR>
@@ -12,14 +12,12 @@ Flotante 5
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- EVITAR CACHÉ EN EL NAVEGADOR -->
+    <!-- FORZAR AL NAVEGADOR A NO USAR CACHÉ DE LA PÁGINA -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    
-    <!-- VIEWPORT TOTALMENTE LIBRE Y NATIVO (Zoom táctil activo) -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+    <!-- Zoom por pellizco habilitado (hasta 10x) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <style>
         * {
@@ -29,23 +27,18 @@ Flotante 5
         html, body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            min-height: 100%;
             background-color: #f8fafc;
             color: #1e293b;
             font-family: sans-serif;
-            /* Scroll nativo total e incondicional táctil */
-            overflow-x: auto;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
         }
 
         body {
             padding: 15px;
             padding-top: 65px;
+            min-height: 100vh;
         }
 
-        /* BARRA FLOTANTE DE NAVEGACIÓN INMUNIZADA A ZOOM */
+        /* BARRA FLOTANTE FIJA */
         .controles-paginado-flotantes {
             position: fixed;
             top: 10px;
@@ -100,48 +93,45 @@ Flotante 5
 
         h2 { color: #0f172a; margin: 0 0 15px 0; }
 
-        #mensaje-estado { 
-            padding: 15px; 
-            border-radius: 6px; 
-            margin-bottom: 20px; 
-            font-weight: bold; 
-            background-color: #e2e8f0; 
+        #mensaje-estado {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            background-color: #e2e8f0;
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
 
-        /* MARCO Y ESCALADO */
-        #marco-tabla {
-            display: inline-block;
-            overflow: visible;
-        }
-
+        /* Contenedor SIN restricciones de gestos: permite pellizco, scroll y paneo natural */
         #contenedor-escalado {
-            display: inline-block;
+            display: block;
+            width: max-content;
             transform-origin: top left;
-            transition: transform 0.25s ease-out;
+            touch-action: auto;
         }
 
-        table { 
-            border-collapse: collapse; 
-            width: max-content; 
-            background: #ffffff; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-            border-radius: 8px; 
-            visibility: hidden; 
-            table-layout: fixed; 
-        }
-        
-        th, td { 
-            font-size: 0.9rem;    
-            padding: 8px 0px;    
-            text-align: center;   
-            border-bottom: 1px solid #e2e8f0; 
-            white-space: nowrap;  
-            overflow: hidden;    
-            text-overflow: ellipsis;  
+        table {
+            border-collapse: collapse;
+            width: max-content;
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            visibility: hidden;
+            table-layout: fixed;
+            transform-origin: top left;
         }
 
-        /* ANCHOS EXACTOS DE GRUPOS */
+        th, td {
+            font-size: 0.9rem;
+            padding: 8px 0px;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            position: relative;
+        }
+
         .col-28 {
             width: 28px !important;
             min-width: 28px !important;
@@ -155,14 +145,19 @@ Flotante 5
             min-width: 64px !important;
             max-width: 64px !important;
         }
-        
+
+        /* Paginado real: se ocultan las columnas del otro bloque
+           (así el ancho real de la tabla coincide con lo visible y el scroll es natural) */
+        table.ver-bloque-0 .b2 { display: none; }
+        table.ver-bloque-1 .b1 { display: none; }
+
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
         tr:hover { background-color: #f8fafc; }
     </style>
 </head>
 <body>
 
-    <!-- BARRA FLOTANTE -->
+    <!-- BARRA FLOTANTE CONTROLADA POR VISUAL VIEWPORT -->
     <div id="barra-flotante" class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
@@ -171,18 +166,16 @@ Flotante 5
 
     <h2>Mis Datos en Tiempo Real</h2>
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
-    
-    <div id="marco-tabla">
-        <div id="contenedor-escalado">
-            <table id="tabla-dinamica">
-                <thead></thead>
-                <tbody></tbody>
-            </table>
-        </div>
+
+    <div id="contenedor-escalado">
+        <table id="tabla-dinamica">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
     </div>
 
     <script>
-        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ ---
+        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ AL INICIAR LA PÁGINA ---
         (async function borrarCachePagina() {
             try {
                 if ('caches' in window) {
@@ -191,104 +184,184 @@ Flotante 5
                 }
                 sessionStorage.clear();
             } catch (e) {
-                console.warn("No se pudo borrar la caché local:", e);
+                console.warn("No se pudo borrar parte de la caché local:", e);
             }
         })();
 
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        let bloqueActual = 0; // 0 = Bloque 1 (Cols 1-17 @ 28px), 1 = Bloque 2 (Cols 18+ @ 64px)
+        let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
+        let totalColumnas = 0;
         const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
         const ANCHO_COL_18_MAS = 64;
 
-        // --- 2. SINCRO DE BARRA FLOTANTE CON PINCH-TO-ZOOM ---
+        // --- 2. BARRA FLOTANTE: SIGUE AL VISUAL VIEWPORT (ZOOM Y PANEO TÁCTIL) ---
         function reajustarBarraFlotante() {
             const barra = document.getElementById('barra-flotante');
-            if (!barra) return;
+            if (!barra || !window.visualViewport) return;
 
-            if (window.visualViewport) {
-                const scale = window.visualViewport.scale;
-                const offsetLeft = window.visualViewport.offsetLeft;
-                const offsetTop = window.visualViewport.offsetTop;
+            const vv = window.visualViewport;
+            const anchoLayout = document.documentElement.clientWidth;
 
-                barra.style.transform = `translate(${offsetLeft}px, ${offsetTop}px) scale(${1 / scale})`;
-            }
+            // Desplazamiento para que la barra quede pegada a la esquina superior derecha de lo que se ve
+            const desplX = vv.offsetLeft + vv.width - anchoLayout;
+            const desplY = vv.offsetTop;
+
+            barra.style.transform = `translate(${desplX}px, ${desplY}px) scale(${1 / vv.scale})`;
         }
 
         if (window.visualViewport) {
             window.visualViewport.addEventListener('scroll', reajustarBarraFlotante);
             window.visualViewport.addEventListener('resize', reajustarBarraFlotante);
         }
-        window.addEventListener('scroll', reajustarBarraFlotante);
+        window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
-        // --- 3. RE-ESCALADO INDEPENDIENTE POR BLOQUE Y SCROLL TÁCTIL NATIVO ---
+        // --- 3. SWIPE HORIZONTAL ENTRE PÁGINAS (solo sin zoom y con un dedo) ---
+        let startX = 0;
+        let startY = 0;
+        let huboMultitouch = false;
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                huboMultitouch = true; // pellizco en curso: no es un swipe
+                return;
+            }
+            huboMultitouch = false;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            if (huboMultitouch) {
+                if (e.touches.length === 0) huboMultitouch = false;
+                return;
+            }
+            if (e.changedTouches.length !== 1) return;
+
+            // Con zoom aplicado, el gesto horizontal se usa para desplazarse por la tabla
+            const escalaPagina = window.visualViewport ? window.visualViewport.scale : 1;
+            if (escalaPagina > 1.02) return;
+
+            const diffX = e.changedTouches[0].clientX - startX;
+            const diffY = e.changedTouches[0].clientY - startY;
+
+            if (Math.abs(diffX) > 70 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+                if (diffX < 0 && bloqueActual === 0 && totalColumnas > LIMITE_PRIMER_BLOQUE) {
+                    cambiarBloque(1);
+                } else if (diffX > 0 && bloqueActual === 1) {
+                    cambiarBloque(-1);
+                }
+            }
+        }, { passive: true });
+
+        // --- 4. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
         function cambiarBloque(direccion) {
-            bloqueActual += direccion;
+            const nuevo = bloqueActual + direccion;
+            if (nuevo < 0 || nuevo > 1) return;
+            if (nuevo === 1 && totalColumnas <= LIMITE_PRIMER_BLOQUE) return;
+            bloqueActual = nuevo;
             aplicarZoomOptimo();
+            window.scrollTo(0, window.scrollY);
         }
 
         function aplicarZoomOptimo() {
-            const marco = document.getElementById("marco-tabla");
             const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
             const btnPrev = document.getElementById("btn-prev");
             const btnNext = document.getElementById("btn-next");
             const indicador = document.getElementById("indicador-bloque");
 
-            const primeraFila = tabla.querySelector("tr");
-            if (!primeraFila) return;
+            if (!totalColumnas) return;
 
-            const totalColumnas = primeraFila.children.length;
             const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
             const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
 
-            // Anchos nativos exactos de cada grupo
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
-            const anchoTotalSinEscala = anchoBloque1 + anchoBloque2;
 
-            // Ancho visible real del dispositivo
-            const anchoPantalla = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-            const anchoDisponible = anchoPantalla - 30; // Margen de margen horizontal
+            // Ancho del layout (NO del visual viewport): no cambia al hacer pellizco
+            const anchoDisponible = document.documentElement.clientWidth - 30;
 
-            let escala = 1;
-            let scrollDestinoX = 0;
+            let anchoObjetivo;
+
+            tabla.classList.remove("ver-bloque-0", "ver-bloque-1");
+            tabla.classList.add(bloqueActual === 0 ? "ver-bloque-0" : "ver-bloque-1");
 
             if (bloqueActual === 0) {
-                // ESCALA BLOQUE 1
-                escala = anchoDisponible / anchoBloque1;
-                scrollDestinoX = 0;
-
+                anchoObjetivo = anchoBloque1;
                 btnPrev.disabled = true;
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${colsBloque1}`;
             } else {
-                // ESCALA BLOQUE 2 (Ajuste específico para que encaje 100% perfecto)
-                escala = anchoDisponible / (anchoBloque2 > 0 ? anchoBloque2 : 1);
-                scrollDestinoX = anchoBloque1 * escala;
-
+                anchoObjetivo = anchoBloque2;
                 btnPrev.disabled = false;
                 btnNext.disabled = true;
                 indicador.innerText = `Cols ${LIMITE_PRIMER_BLOQUE + 1} - ${totalColumnas}`;
             }
 
-            // Aplicar transformación
-            contenedor.style.transform = `scale(${escala})`;
+            if (anchoObjetivo === 0) return;
 
-            // Redimensionar físicamente el contenedor para sostener el scroll nativo táctil de lado a lado
-            marco.style.width = `${anchoTotalSinEscala * escala}px`;
-            marco.style.height = `${tabla.offsetHeight * escala}px`;
+            // Escala inicial para que el bloque entre justo en el ancho de pantalla
+            const escala = anchoDisponible / anchoObjetivo;
 
-            // Mover scroll suavemente hacia el grupo activado
-            window.scrollTo({
-                left: scrollDestinoX,
-                behavior: 'smooth'
-            });
+            if ('zoom' in contenedor.style) {
+                contenedor.style.zoom = escala;
+                contenedor.style.width = "";
+                contenedor.style.height = "";
+                tabla.style.transform = "";
+            } else {
+                // Alternativa para navegadores sin CSS zoom: se fija el tamaño real escalado
+                tabla.style.transform = `scale(${escala})`;
+                contenedor.style.width = `${anchoObjetivo * escala}px`;
+                contenedor.style.height = `${tabla.offsetHeight * escala}px`;
+            }
 
             tabla.style.visibility = "visible";
             reajustarBarraFlotante();
+        }
+
+        // --- 5. LECTOR CSV (soporta comillas y comas dentro de las celdas) ---
+        function parsearCSV(texto) {
+            const filas = [];
+            let fila = [];
+            let celda = "";
+            let enComillas = false;
+
+            for (let i = 0; i < texto.length; i++) {
+                const c = texto[i];
+
+                if (enComillas) {
+                    if (c === '"') {
+                        if (texto[i + 1] === '"') { celda += '"'; i++; }
+                        else { enComillas = false; }
+                    } else {
+                        celda += c;
+                    }
+                } else if (c === '"') {
+                    enComillas = true;
+                } else if (c === ',') {
+                    fila.push(celda.trim());
+                    celda = "";
+                } else if (c === '\n' || c === '\r') {
+                    if (c === '\r' && texto[i + 1] === '\n') i++;
+                    fila.push(celda.trim());
+                    celda = "";
+                    if (fila.some(v => v !== "")) filas.push(fila);
+                    fila = [];
+                } else {
+                    celda += c;
+                }
+            }
+            fila.push(celda.trim());
+            if (fila.some(v => v !== "")) filas.push(fila);
+
+            return filas;
+        }
+
+        function escaparHTML(t) {
+            return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
         async function cargarTabla() {
@@ -305,60 +378,41 @@ Flotante 5
                         'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
                     }
                 });
-                
+
                 if (!respuesta.ok) {
                     throw new Error("Google no respondió correctamente. Revisa el enlace.");
                 }
-                
+
                 const datosTexto = await respuesta.text();
                 estado.innerText = "Dibujando las filas de la tabla...";
 
-                const lineas = datosTexto.split("\n");
-                
+                const filas = parsearCSV(datosTexto);
+                if (filas.length === 0) throw new Error("La planilla no devolvió datos.");
+
                 const tablaHead = document.querySelector("#tabla-dinamica thead");
                 const tablaBody = document.querySelector("#tabla-dinamica tbody");
-                
-                tablaHead.innerHTML = "";
-                tablaBody.innerHTML = "";
 
-                let encabezadosCreados = false;
+                const claseColumna = (idx) =>
+                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
 
-                for (let i = 0; i < lineas.length; i++) {
-                    let filaTexto = lineas[i].trim();
-                    if (filaTexto === "") continue;
+                totalColumnas = filas[0].length;
 
-                    let columnas = filaTexto.split(",");
-                    
-                    columnas = columnas.map(celda => {
-                        let limpia = celda.trim();
-                        if (limpia.startsWith('"') && limpia.endsWith('"')) {
-                            limpia = limpia.substring(1, limpia.length - 1);
-                        }
-                        return limpia;
+                let htmlHead = "<tr>";
+                filas[0].forEach((col, idx) => {
+                    htmlHead += `<th ${claseColumna(idx)}>${escaparHTML(col)}</th>`;
+                });
+                htmlHead += "</tr>";
+                tablaHead.innerHTML = htmlHead;
+
+                let htmlBody = "";
+                for (let i = 1; i < filas.length; i++) {
+                    htmlBody += "<tr>";
+                    filas[i].forEach((col, idx) => {
+                        htmlBody += `<td ${claseColumna(idx)}>${escaparHTML(col)}</td>`;
                     });
-
-                    const obtenerClaseColumna = (index) => {
-                        if (index < LIMITE_PRIMER_BLOQUE) return 'class="col-28"';
-                        return 'class="col-64"';
-                    };
-
-                    if (!encabezadosCreados) {
-                        let htmlHead = "<tr>";
-                        columnas.forEach((col, idx) => {
-                            htmlHead += `<th ${obtenerClaseColumna(idx)}>${col}</th>`;
-                        });
-                        htmlHead += "</tr>";
-                        tablaHead.innerHTML = htmlHead;
-                        encabezadosCreados = true;
-                    } else {
-                        let htmlFila = "<tr>";
-                        columnas.forEach((col, idx) => {
-                            htmlFila += `<td ${obtenerClaseColumna(idx)}>${col}</td>`;
-                        });
-                        htmlFila += "</tr>";
-                        tablaBody.innerHTML += htmlFila;
-                    }
+                    htmlBody += "</tr>";
                 }
+                tablaBody.innerHTML = htmlBody;
 
                 estado.style.display = "none";
                 aplicarZoomOptimo();
@@ -370,20 +424,19 @@ Flotante 5
             }
         }
 
-        window.addEventListener("resize", aplicarZoomOptimo);
+        // Recalcular solo si cambia el ancho real (rotación, redimensionado),
+        // no por los cambios de alto de la barra del navegador ni por el pellizco
+        let ultimoAncho = document.documentElement.clientWidth;
+        window.addEventListener("resize", () => {
+            const ancho = document.documentElement.clientWidth;
+            if (ancho !== ultimoAncho) {
+                ultimoAncho = ancho;
+                aplicarZoomOptimo();
+            }
+        });
+
         cargarTabla();
     </script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
