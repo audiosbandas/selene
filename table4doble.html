@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 5
+Flotante 6
 
 
 </BR></BR></BR>
@@ -17,7 +17,7 @@ Flotante 5
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
-    <!-- VIEWPORT TOTALMENTE PERMISIVO PARA ZOOM TÁCTIL NATIVO -->
+    <!-- VIEWPORT QUE PERMITE ZOOM TÁCTIL Y AUTOESCALADO -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <title>Tabla Dinámica Paginada - Google Sheets</title>
@@ -34,27 +34,30 @@ Flotante 5
             background-color: #f8fafc;
             color: #1e293b;
             font-family: sans-serif;
+            overflow-x: hidden;
         }
 
         body {
             padding: 15px;
+            padding-top: 65px;
         }
 
-        /* BARRA DE CONTROLES FLOTANTE CON POSITION STICKY (INMUNE A CONFLICTOS DE ZOOM) */
+        /* BARRA FLOTANTE FIJA E INAMOVIBLE */
         .controles-paginado-flotantes {
-            position: sticky;
+            position: fixed;
             top: 10px;
-            float: right;
-            z-index: 999999;
+            right: 10px;
+            z-index: 9999999;
             display: flex;
             align-items: center;
             gap: 8px;
             background-color: #ffffff;
-            padding: 6px 12px;
+            padding: 6px 10px;
             border-radius: 8px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
             border: 1px solid #cbd5e1;
-            margin-bottom: 15px;
+            transform-origin: top right;
+            will-change: transform;
         }
 
         .btn-nav {
@@ -92,11 +95,7 @@ Flotante 5
             white-space: nowrap;
         }
 
-        h2 { 
-            color: #0f172a; 
-            margin: 0 0 15px 0; 
-            clear: left;
-        }
+        h2 { color: #0f172a; margin: 0 0 15px 0; }
 
         #mensaje-estado { 
             padding: 15px; 
@@ -107,14 +106,11 @@ Flotante 5
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
 
-        /* CONTENEDOR CON DESPLAZAMIENTO NATIVO SUAVE */
-        #marco-scroll {
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: visible;
-            -webkit-overflow-scrolling: touch;
-            scroll-behavior: smooth;
-            padding-bottom: 10px;
+        /* MARCO CONTENEDOR CON TRANSFORM-ORIGIN PARA EL ESCALADO */
+        #contenedor-escalado {
+            display: block;
+            transform-origin: top left;
+            transition: transform 0.25s ease-out;
         }
 
         table { 
@@ -125,6 +121,7 @@ Flotante 5
             border-radius: 8px; 
             visibility: hidden; 
             table-layout: fixed; 
+            transition: transform 0.25s ease-out;
         }
         
         th, td { 
@@ -157,8 +154,8 @@ Flotante 5
 </head>
 <body>
 
-    <!-- CONTROLES FLOTANTES -->
-    <div class="controles-paginado-flotantes">
+    <!-- BARRA FLOTANTE -->
+    <div id="barra-flotante" class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
@@ -167,8 +164,7 @@ Flotante 5
     <h2>Mis Datos en Tiempo Real</h2>
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
-    <!-- MARCO CON SCROLL/DESPLAZAMIENTO LIBRE -->
-    <div id="marco-scroll">
+    <div id="contenedor-escalado">
         <table id="tabla-dinamica">
             <thead></thead>
             <tbody></tbody>
@@ -176,7 +172,7 @@ Flotante 5
     </div>
 
     <script>
-        // --- LIMPIEZA DE CACHÉ ---
+        // --- 1. LIMPIEZA DE CACHÉ ---
         (async function borrarCachePagina() {
             try {
                 if ('caches' in window) {
@@ -192,17 +188,39 @@ Flotante 5
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        let bloqueActual = 0; // 0 = Izquierda (Cols 1-17), 1 = Derecha (Cols 18+)
+        let bloqueActual = 0; // 0 = Cols 1-17 (28px), 1 = Cols 18+ (64px)
         const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
+        const ANCHO_COL_18_MAS = 64;
 
-        function cambiarBloque(direccion) {
-            bloqueActual += direccion;
-            desplazarABloque();
+        // --- 2. MANEJO DE LA BARRA FLOTANTE CON ZOOM TÁCTIL ---
+        function reajustarBarraFlotante() {
+            const barra = document.getElementById('barra-flotante');
+            if (!barra) return;
+
+            if (window.visualViewport) {
+                const scale = window.visualViewport.scale;
+                const offsetLeft = window.visualViewport.offsetLeft;
+                const offsetTop = window.visualViewport.offsetTop;
+
+                barra.style.transform = `translate(${offsetLeft}px, ${offsetTop}px) scale(${1 / scale})`;
+            }
         }
 
-        function desplazarABloque() {
-            const marco = document.getElementById("marco-scroll");
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('scroll', reajustarBarraFlotante);
+            window.visualViewport.addEventListener('resize', reajustarBarraFlotante);
+        }
+        window.addEventListener('scroll', reajustarBarraFlotante);
+
+        // --- 3. CAMBIO DE BLOQUE Y ESCALADO AUTOMÁTICO AL ANCHO DE PANTALLA ---
+        function cambiarBloque(direccion) {
+            bloqueActual += direccion;
+            aplicarZoomOptimo();
+        }
+
+        function aplicarZoomOptimo() {
+            const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
             const btnPrev = document.getElementById("btn-prev");
             const btnNext = document.getElementById("btn-next");
@@ -212,49 +230,50 @@ Flotante 5
             if (!primeraFila) return;
 
             const totalColumnas = primeraFila.children.length;
+
             const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
+            const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
+
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
+            const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
+
+            // Ancho visible real disponible en pantalla
+            const anchoVisibleReal = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+            const anchoDisponible = anchoVisibleReal - 30;
+
+            let anchoObjetivo = 0;
+            let desplazamientoX = 0;
 
             if (bloqueActual === 0) {
-                // Ir a la izquierda
-                marco.scrollLeft = 0;
+                // PRIMER BLOQUE (Cols 1 a 17)
+                anchoObjetivo = anchoBloque1;
+                desplazamientoX = 0;
+
                 btnPrev.disabled = true;
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${colsBloque1}`;
             } else {
-                // Ir a la derecha (desplazar el ancho del bloque 1)
-                marco.scrollLeft = anchoBloque1;
+                // SEGUNDO BLOQUE (Cols 18 en adelante)
+                anchoObjetivo = anchoBloque2;
+                desplazamientoX = -anchoBloque1;
+
                 btnPrev.disabled = false;
                 btnNext.disabled = true;
                 indicador.innerText = `Cols ${LIMITE_PRIMER_BLOQUE + 1} - ${totalColumnas}`;
             }
 
+            if (anchoObjetivo === 0) return;
+
+            // Calcular el factor de escala óptimo según la definición del bloque
+            const escala = anchoDisponible / anchoObjetivo;
+
+            // Aplicar escala al contenedor y desplazamiento de columnas a la tabla
+            contenedor.style.transform = `scale(${escala})`;
+            tabla.style.transform = `translateX(${desplazamientoX}px)`;
+
             tabla.style.visibility = "visible";
+            reajustarBarraFlotante();
         }
-
-        // Actualizar automáticamente los botones si el usuario se desplaza deslizando el dedo libremente
-        document.getElementById("marco-scroll").addEventListener("scroll", () => {
-            const marco = document.getElementById("marco-scroll");
-            const tabla = document.getElementById("tabla-dinamica");
-            const primeraFila = tabla.querySelector("tr");
-            if (!primeraFila) return;
-
-            const totalColumnas = primeraFila.children.length;
-            const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
-            const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
-
-            if (marco.scrollLeft < anchoBloque1 / 2) {
-                bloqueActual = 0;
-                document.getElementById("btn-prev").disabled = true;
-                document.getElementById("btn-next").disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
-                document.getElementById("indicador-bloque").innerText = `Cols 1 - ${colsBloque1}`;
-            } else {
-                bloqueActual = 1;
-                document.getElementById("btn-prev").disabled = false;
-                document.getElementById("btn-next").disabled = true;
-                document.getElementById("indicador-bloque").innerText = `Cols ${LIMITE_PRIMER_BLOQUE + 1} - ${totalColumnas}`;
-            }
-        });
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
@@ -326,7 +345,7 @@ Flotante 5
                 }
 
                 estado.style.display = "none";
-                desplazarABloque();
+                aplicarZoomOptimo();
 
             } catch (error) {
                 console.error("Detalle:", error);
@@ -335,11 +354,13 @@ Flotante 5
             }
         }
 
+        window.addEventListener("resize", aplicarZoomOptimo);
         cargarTabla();
     </script>
 
 </body>
 </html>
+
 
 
 
