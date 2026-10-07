@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 5
+Flotante 6
 
 
 </BR></BR></BR>
@@ -81,6 +81,14 @@ Flotante 5
             color: #94a3b8;
             cursor: not-allowed;
             opacity: 0.7;
+        }
+
+        /* Estilo especial para el botón de Word */
+        .btn-word {
+            background-color: #10b981;
+        }
+        .btn-word:hover:not(:disabled) {
+            background-color: #059669;
         }
 
         .indicador-bloque {
@@ -167,6 +175,7 @@ Flotante 5
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
+        <button id="btn-exportar" class="btn-nav btn-word" onclick="exportarADocx()">Exportar Word</button>
     </div>
 
     <h2>Mis Datos en Tiempo Real</h2>
@@ -407,7 +416,7 @@ Flotante 5
                     if (c === '\r' && texto[i + 1] === '\n') i++;
                     fila.push(celda.trim());
                     celda = "";
-                    filas.push(fila); // Conserva todas las filas (incluso vacías)
+                    filas.push(fila);
                     fila = [];
                 } else {
                     celda += c;
@@ -416,7 +425,6 @@ Flotante 5
             fila.push(celda.trim());
             filas.push(fila);
 
-            // Buscar el índice de la última fila que tenga al menos una celda con algún dato
             let ultimaFilaConDatos = -1;
             for (let i = filas.length - 1; i >= 0; i--) {
                 if (filas[i].some(v => v !== "")) {
@@ -425,7 +433,6 @@ Flotante 5
                 }
             }
 
-            // Recortar la tabla hasta esa última fila con datos
             if (ultimaFilaConDatos !== -1) {
                 return filas.slice(0, ultimaFilaConDatos + 1);
             }
@@ -512,6 +519,80 @@ Flotante 5
             }
         });
 
+        // --- 5. LÓGICA DE EXPORTACIÓN A WORD (DOCX) DESDE COLUMNA 19 (FORMATO VERTICAL) ---
+        function exportarADocx() {
+            const tablaOriginal = document.getElementById('tabla-dinamica');
+            
+            if (!tablaOriginal || tablaOriginal.rows.length === 0 || totalColumnas < 19) {
+                alert("No hay suficientes datos para exportar (se requiere al menos llegar a la columna 19).");
+                return;
+            }
+
+            // Construir la nueva tabla HTML configurada para maximizar el ancho
+            let tablaHTML = '<table border="1" style="width: 100%; border-collapse: collapse; table-layout: fixed; font-family: sans-serif; font-size: 10pt;">';
+
+            // Recorrer todas las filas (Head y Body)
+            for (let i = 0; i < tablaOriginal.rows.length; i++) {
+                let fila = tablaOriginal.rows[i];
+                tablaHTML += '<tr>';
+                
+                // Iterar desde la Columna 19 (índice 18) hasta el final
+                for (let j = 18; j < fila.cells.length; j++) {
+                    let contenido = fila.cells[j].innerHTML;
+                    let esHeader = fila.cells[j].tagName.toLowerCase() === 'th';
+                    
+                    if (esHeader) {
+                        tablaHTML += `<th style="padding: 5px; background-color: #f1f5f9; word-wrap: break-word; border: 1px solid #ccc; text-align: left;">${contenido}</th>`;
+                    } else {
+                        tablaHTML += `<td style="padding: 5px; word-wrap: break-word; border: 1px solid #ccc; text-align: left;">${contenido}</td>`;
+                    }
+                }
+                tablaHTML += '</tr>';
+            }
+            tablaHTML += '</table>';
+
+            // Ensamblar con metadata de Office. Orientación vertical (portrait) y márgenes de 1cm
+            const cabecera = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+                      xmlns:w="urn:schemas-microsoft-com:office:word" 
+                      xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="utf-8">
+                    <title>Exportacion Tabla</title>
+                    <style>
+                        /* Configuración de Word: A4 Vertical (Portrait), Márgenes reducidos a 1cm */
+                        @page WordSection1 {
+                            size: 21cm 29.7cm;
+                            mso-page-orientation: portrait;
+                            margin: 1cm 1cm 1cm 1cm;
+                        }
+                        div.WordSection1 { page: WordSection1; }
+                    </style>
+                </head>
+                <body>
+                    <div class="WordSection1">
+                        ${tablaHTML}
+                    </div>
+                </body>
+                </html>`;
+
+            // Crear el archivo
+            const blob = new Blob(['\ufeff', cabecera], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            
+            // Simular la descarga
+            const enlace = document.createElement('a');
+            enlace.href = url;
+            enlace.download = 'Exportacion_Columnas_19_Mas.doc';
+            document.body.appendChild(enlace);
+            enlace.click();
+            
+            // Limpiar
+            document.body.removeChild(enlace);
+            URL.revokeObjectURL(url);
+        }
+
+        // Ejecutar carga de datos inicial
         cargarTabla();
     </script>
 
