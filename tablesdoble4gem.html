@@ -1,4 +1,4 @@
-Word mejorado 1
+Word mejorado 2
 
 
 <!DOCTYPE html>
@@ -11,8 +11,8 @@ Word mejorado 1
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     
-    <!-- LIBRERÍA OFICIAL DOCX.JS PARA GENERAR ARCHIVOS .DOCX 100% NATIVOS -->
-    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+    <!-- LIBRERÍA DOCX.JS (VERSIÓN COMPATIBLE UMD) -->
+    <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
 
     <style>
         * { box-sizing: border-box; }
@@ -268,128 +268,138 @@ Word mejorado 1
             }
         }
 
-        // --- EXPORTACIÓN NATIVA A .DOCX CON FORMATO PERSONALIZADO ---
+        // --- EXPORTACIÓN NATIVA A .DOCX ---
         async function exportarDesdeCol19DocxNativo() {
-            const tabla = document.getElementById("tabla-dinamica");
-            if (!tabla || !tabla.querySelector("tbody") || tabla.querySelector("tbody").rows.length === 0) {
-                alert("No hay datos cargados para exportar.");
-                return;
-            }
-
-            const INDICE_INICIO = 18; // Columna 19 en adelante
-            const theadCells = tabla.querySelectorAll("thead th");
-            if (theadCells.length <= INDICE_INICIO) {
-                alert("La tabla no posee suficientes columnas (mínimo 19).");
-                return;
-            }
-
-            const { 
-                Document, 
-                Packer, 
-                Paragraph, 
-                Table, 
-                TableCell, 
-                TableRow, 
-                WidthType, 
-                TextRun, 
-                HeightRule, 
-                BorderStyle 
-            } = window.docx;
-
-            const numCols = theadCells.length - INDICE_INICIO;
-            const ANCHO_COLUMNA_PORCENTAJE = 100 / numCols; // Ancho idéntico para todas las columnas
-            const ALTO_FILA_DXA = 360; // Alto idéntico para todas las filas (~18pt)
-
-            let filasDocx = [];
-
-            // Helper para generar celdas sin salto de línea (permite desborde lateral)
-            function crearCelda(texto, esEncabezado = false) {
-                return new TableCell({
-                    children: [
-                        new Paragraph({
-                            children: [new TextRun({ text: texto, bold: esEncabezado })],
-                            noWrap: true // Evita salto de línea dentro del párrafo
-                        })
-                    ],
-                    width: { size: ANCHO_COLUMNA_PORCENTAJE, type: WidthType.PERCENTAGE },
-                    noWrap: true, // Permite el desborde a la derecha si excede el tamaño
-                    shading: esEncabezado ? { fill: "F1F5F9" } : undefined
-                });
-            }
-
-            // 1. Fila de Encabezados
-            let celdasEncabezado = [];
-            for (let i = INDICE_INICIO; i < theadCells.length; i++) {
-                celdasEncabezado.push(crearCelda(theadCells[i].innerText.trim(), true));
-            }
-            filasDocx.push(new TableRow({
-                children: celdasEncabezado,
-                tableHeader: true,
-                height: { value: ALTO_FILA_DXA, rule: HeightRule.EXACTLY }
-            }));
-
-            // 2. Filas de Datos
-            const tbodyRows = tabla.querySelectorAll("tbody tr");
-            tbodyRows.forEach(tr => {
-                const tdCells = tr.querySelectorAll("td");
-                if (tdCells.length > INDICE_INICIO) {
-                    let celdasFila = [];
-                    for (let i = INDICE_INICIO; i < tdCells.length; i++) {
-                        celdasFila.push(crearCelda(tdCells[i].innerText.trim(), false));
-                    }
-                    filasDocx.push(new TableRow({
-                        children: celdasFila,
-                        height: { value: ALTO_FILA_DXA, rule: HeightRule.EXACTLY }
-                    }));
+            try {
+                const docxLib = window.docx || window.docxJS;
+                if (!docxLib) {
+                    alert("La librería docx.js no se cargó correctamente. Revisa la conexión a internet.");
+                    return;
                 }
-            });
 
-            // 3. Crear el documento Word nativo
-            const doc = new Document({
-                sections: [{
-                    properties: {
-                        page: {
-                            margin: {
-                                top: 720,    // Margen Estrecho: 0.5 pulg = 720 dxa
-                                bottom: 720,
-                                left: 720,
-                                right: 720
-                            }
+                const tabla = document.getElementById("tabla-dinamica");
+                if (!tabla || !tabla.querySelector("tbody") || tabla.querySelector("tbody").rows.length === 0) {
+                    alert("No hay datos cargados para exportar.");
+                    return;
+                }
+
+                const INDICE_INICIO = 18; // Columna 19 en adelante
+                const theadCells = tabla.querySelectorAll("thead th");
+                if (theadCells.length <= INDICE_INICIO) {
+                    alert("La tabla no posee suficientes columnas (mínimo 19).");
+                    return;
+                }
+
+                const { 
+                    Document, 
+                    Packer, 
+                    Paragraph, 
+                    Table, 
+                    TableCell, 
+                    TableRow, 
+                    WidthType, 
+                    TextRun, 
+                    HeightRule, 
+                    BorderStyle 
+                } = docxLib;
+
+                const numCols = theadCells.length - INDICE_INICIO;
+                const ANCHO_COLUMNA_PORCENTAJE = 100 / numCols;
+                const ALTO_FILA_DXA = 360; // Alto fijo (~18pt)
+
+                let filasDocx = [];
+
+                function crearCelda(texto, esEncabezado = false) {
+                    return new TableCell({
+                        children: [
+                            new Paragraph({
+                                children: [new TextRun({ text: texto, bold: esEncabezado })],
+                                noWrap: true
+                            })
+                        ],
+                        width: { size: ANCHO_COLUMNA_PORCENTAJE, type: WidthType.PERCENTAGE },
+                        noWrap: true,
+                        shading: esEncabezado ? { fill: "F1F5F9" } : undefined
+                    });
+                }
+
+                // 1. Fila de Encabezados
+                let celdasEncabezado = [];
+                for (let i = INDICE_INICIO; i < theadCells.length; i++) {
+                    celdasEncabezado.push(crearCelda(theadCells[i].innerText.trim(), true));
+                }
+                filasDocx.push(new TableRow({
+                    children: celdasEncabezado,
+                    tableHeader: true,
+                    height: { value: ALTO_FILA_DXA, rule: HeightRule.EXACTLY }
+                }));
+
+                // 2. Filas de Datos
+                const tbodyRows = tabla.querySelectorAll("tbody tr");
+                tbodyRows.forEach(tr => {
+                    const tdCells = tr.querySelectorAll("td");
+                    if (tdCells.length > INDICE_INICIO) {
+                        let celdasFila = [];
+                        for (let i = INDICE_INICIO; i < tdCells.length; i++) {
+                            celdasFila.push(crearCelda(tdCells[i].innerText.trim(), false));
                         }
-                    },
-                    children: [
-                        new Paragraph({
-                            children: [new TextRun({ text: "Mis Datos (Desde la Columna 19)", bold: true, size: 28 })],
-                            spacing: { after: 200 }
-                        }),
-                        new Table({
-                            rows: filasDocx,
-                            width: { size: 100, type: WidthType.PERCENTAGE },
-                            // Ocultar todas las líneas divisorias
-                            borders: {
-                                top: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                bottom: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                left: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                right: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                insideVertical: { style: BorderStyle.NONE, size: 0, color: "AUTO" }
-                            }
-                        })
-                    ]
-                }]
-            });
+                        filasDocx.push(new TableRow({
+                            children: celdasFila,
+                            height: { value: ALTO_FILA_DXA, rule: HeightRule.EXACTLY }
+                        }));
+                    }
+                });
 
-            // 4. Generar el archivo binario comprimido (.docx) y descargarlo automáticamente
-            const blob = await Packer.toBlob(doc);
-            const fechaActual = new Date().toISOString().slice(0, 10);
-            const enlace = document.createElement('a');
-            enlace.href = URL.createObjectURL(blob);
-            enlace.download = `Datos_Col19_Estrecho_${fechaActual}.docx`;
-            
-            document.body.appendChild(enlace);
-            enlace.click();
-            document.body.removeChild(enlace);
-            URL.revokeObjectURL(enlace.href);
+                // 3. Crear el documento Word nativo
+                const doc = new Document({
+                    sections: [{
+                        properties: {
+                            page: {
+                                margin: {
+                                    top: 720,    // Margen Estrecho: 0.5 pulg = 720 dxa
+                                    bottom: 720,
+                                    left: 720,
+                                    right: 720
+                                }
+                            }
+                        },
+                        children: [
+                            new Paragraph({
+                                children: [new TextRun({ text: "Mis Datos (Desde la Columna 19)", bold: true, size: 28 })],
+                                spacing: { after: 200 }
+                            }),
+                            new Table({
+                                rows: filasDocx,
+                                width: { size: 100, type: WidthType.PERCENTAGE },
+                                borders: {
+                                    top: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
+                                    bottom: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
+                                    left: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
+                                    right: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
+                                    insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
+                                    insideVertical: { style: BorderStyle.NONE, size: 0, color: "AUTO" }
+                                }
+                            })
+                        ]
+                    }]
+                });
+
+                // 4. Descargar el archivo
+                const blob = await Packer.toBlob(doc);
+                const fechaActual = new Date().toISOString().slice(0, 10);
+                const enlace = document.createElement('a');
+                enlace.href = URL.createObjectURL(blob);
+                enlace.download = `Datos_Col19_Estrecho_${fechaActual}.docx`;
+                
+                document.body.appendChild(enlace);
+                enlace.click();
+                document.body.removeChild(enlace);
+                URL.revokeObjectURL(enlace.href);
+
+            } catch (err) {
+                alert("Error al generar el archivo .docx: " + err.message);
+                console.error(err);
+            }
         }
 
         window.addEventListener("resize", () => aplicarZoomOptimo());
