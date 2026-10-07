@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 6
+Flotante 4
 
 
 </BR></BR></BR>
@@ -16,8 +16,8 @@ Flotante 6
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <!-- Zoom por pellizco habilitado (hasta 10x) -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes">
+    <!-- Zoom nativo desactivado: el zoom de la tabla es simulado por el propio código -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <style>
         * {
@@ -25,6 +25,7 @@ Flotante 6
         }
 
         html, body {
+            touch-action: pan-x pan-y; /* permite desplazarse, bloquea el zoom nativo por pellizco/doble toque */
             margin: 0;
             padding: 0;
             background-color: #f8fafc;
@@ -108,7 +109,7 @@ Flotante 6
             overflow-x: auto;
             overflow-y: hidden;
             -webkit-overflow-scrolling: touch;
-            touch-action: auto;
+            touch-action: pan-x pan-y;
         }
 
         /* Contenedor SIN restricciones de gestos: permite pellizco, scroll y paneo natural */
@@ -116,7 +117,7 @@ Flotante 6
             display: block;
             width: max-content;
             transform-origin: top left;
-            touch-action: auto;
+            touch-action: pan-x pan-y;
         }
 
         table {
@@ -226,46 +227,9 @@ Flotante 6
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
         // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
-        const VIEWPORT_NORMAL = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes';
-        const VIEWPORT_BLOQUEADO = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no';
-        let reseteandoZoom = false;
-
-        // Reemplaza la etiqueta meta viewport (algunos navegadores solo reaccionan si se reemplaza el nodo)
-        function fijarMetaViewport(contenido) {
-            const viejo = document.querySelector('meta[name="viewport"]');
-            const nuevo = document.createElement('meta');
-            nuevo.name = 'viewport';
-            nuevo.content = contenido;
-            if (viejo) viejo.replaceWith(nuevo);
-            else document.head.appendChild(nuevo);
-        }
-
-        // Intenta devolver el zoom de pellizco a 100%. No existe una API estándar para esto,
-        // así que se prueba bloqueando el viewport un instante y se verifica si funcionó.
-        // Si el navegador no lo permite, queda el ajuste al área visible (ya aplicado).
-        function intentarResetearZoom() {
-            if (reseteandoZoom || !window.visualViewport) return;
-            reseteandoZoom = true;
-
-            fijarMetaViewport(VIEWPORT_BLOQUEADO);
-
-            const inicio = Date.now();
-            const verificar = setInterval(() => {
-                const logrado = window.visualViewport.scale <= 1.01;
-                const agotado = Date.now() - inicio > 900;
-
-                if (logrado || agotado) {
-                    clearInterval(verificar);
-                    fijarMetaViewport(VIEWPORT_NORMAL);
-                    // Se recalcula con el estado final: 100% si se logró, o ajuste al área visible si no
-                    setTimeout(() => {
-                        window.scrollTo(0, window.scrollY);
-                        aplicarZoomOptimo();
-                        reseteandoZoom = false;
-                    }, 120);
-                }
-            }, 60);
-        }
+        let zoomUsuario = 1;   // zoom simulado por el usuario (1 = grupo ajustado de borde a borde)
+        let escalaBase = 1;    // escala que hace entrar el grupo actual de borde a borde
+        const ZOOM_MAXIMO = 8;
 
         function cambiarBloque(direccion) {
             const nuevo = bloqueActual + direccion;
@@ -273,19 +237,38 @@ Flotante 6
             if (nuevo === 1 && totalColumnas <= LIMITE_PRIMER_BLOQUE) return;
             bloqueActual = nuevo;
 
-            // 1) Ajuste inmediato al área visible (comportamiento actual)
+            // El zoom simulado vuelve a 1x y el grupo se ajusta de borde a borde
+            zoomUsuario = 1;
             aplicarZoomOptimo();
-
-            // 2) Si había zoom de pellizco, se intenta volver a 100% y se reajusta el grupo
-            const escalaPagina = window.visualViewport ? window.visualViewport.scale : 1;
-            if (escalaPagina > 1.01) intentarResetearZoom();
 
             reajustarBarraFlotante();
         }
 
+        function escalaActual() {
+            return escalaBase * zoomUsuario;
+        }
+
+        function aplicarEscala(escala) {
+            const contenedor = document.getElementById("contenedor-escalado");
+            const tabla = document.getElementById("tabla-dinamica");
+
+            if ('zoom' in contenedor.style) {
+                contenedor.style.zoom = escala;
+                contenedor.style.width = "";
+                contenedor.style.height = "";
+                tabla.style.transform = "";
+            } else {
+                // Alternativa para navegadores sin CSS zoom: se fija el tamaño real escalado
+                const anchoTotal = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE) * ANCHO_COL_1_17
+                    + Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE) * ANCHO_COL_18_MAS;
+                tabla.style.transform = `scale(${escala})`;
+                contenedor.style.width = `${anchoTotal * escala}px`;
+                contenedor.style.height = `${tabla.offsetHeight * escala}px`;
+            }
+        }
+
         function aplicarZoomOptimo() {
             const visor = document.getElementById("visor-tabla");
-            const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
             const btnPrev = document.getElementById("btn-prev");
             const btnNext = document.getElementById("btn-next");
@@ -298,28 +281,9 @@ Flotante 6
 
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
-            const anchoTotal = anchoBloque1 + anchoBloque2;
 
-            // Ancho disponible: si la página tiene zoom de pellizco, el visor se ubica exactamente
-            // sobre la zona que se está viendo (visual viewport) y toma ese ancho visible.
-            // Sin zoom, ocupa el ancho normal de la pantalla.
-            const vv = window.visualViewport;
-            const anchoLayout = document.documentElement.clientWidth;
-            const zoomPagina = vv ? vv.scale : 1;
-            let anchoDisponible;
-
-            if (vv && zoomPagina > 1.01) {
-                const margen = 15 / zoomPagina;
-                anchoDisponible = Math.max(100, vv.width - margen * 2);
-                visor.style.position = "relative";
-                visor.style.left = (vv.pageLeft + margen - 15) + "px";
-                visor.style.width = anchoDisponible + "px";
-            } else {
-                visor.style.position = "";
-                visor.style.left = "";
-                visor.style.width = "";
-                anchoDisponible = anchoLayout - 30;
-            }
+            // La página siempre está al 100%: el ancho disponible es el ancho real de la pantalla
+            const anchoDisponible = document.documentElement.clientWidth - 30;
 
             let anchoObjetivo;
             let inicioBloque; // posición (sin escalar) donde empieza el bloque actual
@@ -340,29 +304,92 @@ Flotante 6
 
             if (anchoObjetivo === 0) return;
 
-            // Escala inicial para que el bloque entre justo en el ancho de pantalla
-            const escala = anchoDisponible / anchoObjetivo;
-
-            if ('zoom' in contenedor.style) {
-                contenedor.style.zoom = escala;
-                contenedor.style.width = "";
-                contenedor.style.height = "";
-                tabla.style.transform = "";
-            } else {
-                // Alternativa para navegadores sin CSS zoom: se fija el tamaño real escalado
-                tabla.style.transform = `scale(${escala})`;
-                contenedor.style.width = `${anchoTotal * escala}px`;
-                contenedor.style.height = `${tabla.offsetHeight * escala}px`;
-            }
+            // Escala que hace entrar el grupo justo en el ancho de pantalla
+            escalaBase = anchoDisponible / anchoObjetivo;
+            aplicarEscala(escalaActual());
 
             tabla.style.visibility = "visible";
 
-            // La tabla completa queda disponible: se posiciona el visor al inicio del bloque
-            // y el usuario puede arrastrar con el dedo hacia izquierda o derecha
-            visor.scrollLeft = inicioBloque * escala;
+            // Se posiciona el visor al inicio del bloque; el arrastre con el dedo recorre la tabla
+            visor.scrollLeft = inicioBloque * escalaActual();
 
             reajustarBarraFlotante();
         }
+
+        // --- 3b. ZOOM POR PELLIZCO SIMULADO (solo sobre la tabla; la página queda al 100%) ---
+        let pellizco = null;
+        let cuadroPendiente = false;
+        let ultimoPunto = null;
+
+        function distanciaDedos(toques) {
+            return Math.hypot(toques[0].clientX - toques[1].clientX, toques[0].clientY - toques[1].clientY);
+        }
+
+        function puntoMedio(toques) {
+            return {
+                x: (toques[0].clientX + toques[1].clientX) / 2,
+                y: (toques[0].clientY + toques[1].clientY) / 2
+            };
+        }
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 2 || !totalColumnas) {
+                if (e.touches.length > 2) pellizco = null;
+                return;
+            }
+
+            const visor = document.getElementById("visor-tabla");
+            const r = visor.getBoundingClientRect();
+            const p = puntoMedio(e.touches);
+            const escala0 = escalaActual();
+
+            pellizco = {
+                d0: distanciaDedos(e.touches),
+                zoom0: zoomUsuario,
+                izquierdaVisor: r.left,
+                // Punto de la tabla (sin escalar) que está bajo los dedos: debe mantenerse bajo ellos
+                contenidoX: (visor.scrollLeft + p.x - r.left) / escala0,
+                contenidoY: (p.y - r.top) / escala0,
+                topPagina: r.top + window.scrollY
+            };
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!pellizco || e.touches.length !== 2) return;
+
+            if (e.cancelable) e.preventDefault();
+
+            const d = distanciaDedos(e.touches);
+            zoomUsuario = Math.min(ZOOM_MAXIMO, Math.max(1, pellizco.zoom0 * (d / pellizco.d0)));
+            ultimoPunto = puntoMedio(e.touches);
+
+            if (cuadroPendiente) return;
+            cuadroPendiente = true;
+
+            requestAnimationFrame(() => {
+                cuadroPendiente = false;
+                if (!pellizco || !ultimoPunto) return;
+
+                const visor = document.getElementById("visor-tabla");
+                const escala = escalaActual();
+
+                aplicarEscala(escala);
+
+                visor.scrollLeft = pellizco.contenidoX * escala - (ultimoPunto.x - pellizco.izquierdaVisor);
+                window.scrollTo(window.scrollX, pellizco.contenidoY * escala + pellizco.topPagina - ultimoPunto.y);
+            });
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) pellizco = null;
+        }, { passive: true });
+
+        document.addEventListener('touchcancel', () => { pellizco = null; }, { passive: true });
+
+        // Safari (iOS) puede ignorar user-scalable=no: se bloquean sus gestos de zoom de página
+        ['gesturestart', 'gesturechange', 'gestureend'].forEach((nombre) => {
+            document.addEventListener(nombre, (e) => e.preventDefault(), { passive: false });
+        });
 
         // --- 4. LECTOR CSV (soporta comillas y comas dentro de las celdas) ---
         function parsearCSV(texto) {
