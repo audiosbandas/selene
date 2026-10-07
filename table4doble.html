@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 5
+Flotante 6
 
 
 </BR></BR></BR>
@@ -12,170 +12,84 @@ Flotante 5
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- FORZAR AL NAVEGADOR A NO USAR CACHÉ DE LA PÁGINA -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <!-- Zoom nativo desactivado: el zoom de la tabla es simulado por el propio código -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
 
-    <!-- LIBRERÍAS EXTERNAS CORREGIDAS PARA GENERAR ARCHIVO .DOCX NATIVO -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/7.8.2/docx.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- ENLACES CORREGIDOS: Versiones estables y comprobadas vía jsDelivr -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@7.3.0/build/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
-
+        * { box-sizing: border-box; }
         html, body {
-            touch-action: pan-x pan-y; /* permite desplazarse, bloquea el zoom nativo por pellizco/doble toque */
-            margin: 0;
-            padding: 0;
-            background-color: #f8fafc;
-            color: #1e293b;
-            font-family: sans-serif;
+            touch-action: pan-x pan-y;
+            margin: 0; padding: 0;
+            background-color: #f8fafc; color: #1e293b; font-family: sans-serif;
         }
+        body { padding: 15px; padding-top: 65px; min-height: 100vh; }
 
-        body {
-            padding: 15px;
-            padding-top: 65px;
-            min-height: 100vh;
-        }
-
-        /* BARRA FLOTANTE FIJA */
         .controles-paginado-flotantes {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 9999999;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background-color: #ffffff;
-            padding: 6px 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-            border: 1px solid #cbd5e1;
-            transform-origin: top right;
-            will-change: transform;
+            position: fixed; top: 10px; right: 10px; z-index: 9999999;
+            display: flex; align-items: center; gap: 8px;
+            background-color: #ffffff; padding: 6px 10px; border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); border: 1px solid #cbd5e1;
+            transform-origin: top right; will-change: transform;
         }
 
         .btn-nav {
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            transition: background-color 0.2s ease;
+            background-color: #2563eb; color: white; border: none;
+            padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: bold;
+            cursor: pointer; white-space: nowrap; user-select: none;
+            -webkit-tap-highlight-color: transparent; transition: background-color 0.2s ease;
         }
-
-        .btn-nav:hover:not(:disabled) {
-            background-color: #1d4ed8;
-        }
-
-        .btn-nav:disabled {
-            background-color: #cbd5e1;
-            color: #94a3b8;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        /* Estilo especial para el botón de Word */
-        .btn-word {
-            background-color: #10b981;
-        }
-        .btn-word:hover:not(:disabled) {
-            background-color: #059669;
-        }
+        .btn-nav:hover:not(:disabled) { background-color: #1d4ed8; }
+        .btn-nav:disabled { background-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+        .btn-word { background-color: #10b981; }
+        .btn-word:hover:not(:disabled) { background-color: #059669; }
 
         .indicador-bloque {
-            font-weight: bold;
-            color: #475569;
-            font-size: 0.85rem;
-            min-width: 85px;
-            text-align: center;
-            white-space: nowrap;
+            font-weight: bold; color: #475569; font-size: 0.85rem;
+            min-width: 85px; text-align: center; white-space: nowrap;
         }
 
         h2 { color: #0f172a; margin: 0 0 15px 0; }
 
         #mensaje-estado {
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            font-weight: bold;
-            background-color: #e2e8f0;
+            padding: 15px; border-radius: 6px; margin-bottom: 20px;
+            font-weight: bold; background-color: #e2e8f0;
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
 
-        /* Visor con desplazamiento táctil horizontal sobre la tabla completa */
         #visor-tabla {
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-x pan-y;
+            width: 100%; overflow-x: auto; overflow-y: hidden;
+            -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
         }
-
-        /* Contenedor SIN restricciones de gestos: permite pellizco, scroll y paneo natural */
         #contenedor-escalado {
-            display: block;
-            width: max-content;
-            transform-origin: top left;
-            touch-action: pan-x pan-y;
+            display: block; width: max-content;
+            transform-origin: top left; touch-action: pan-x pan-y;
         }
 
         table {
-            border-collapse: collapse;
-            width: max-content;
-            background: #ffffff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            visibility: hidden;
-            table-layout: fixed;
-            transform-origin: top left;
+            border-collapse: collapse; width: max-content; background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 8px;
+            visibility: hidden; table-layout: fixed; transform-origin: top left;
         }
-
         th, td {
-            font-size: 0.9rem;
-            padding: 8px 0px;
-            text-align: center;
-            border-bottom: 1px solid #e2e8f0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            position: relative;
+            font-size: 0.9rem; padding: 8px 0px; text-align: center;
+            border-bottom: 1px solid #e2e8f0; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; position: relative;
         }
-
-        .col-28 {
-            width: 28px !important;
-            min-width: 28px !important;
-            max-width: 28px !important;
-            padding: 6px 0px;
-            font-size: 0.8rem;
-        }
-
-        .col-64 {
-            width: 64px !important;
-            min-width: 64px !important;
-            max-width: 64px !important;
-        }
-
+        .col-28 { width: 28px !important; min-width: 28px !important; max-width: 28px !important; padding: 6px 0px; font-size: 0.8rem; }
+        .col-64 { width: 64px !important; min-width: 64px !important; max-width: 64px !important; }
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
         tr:hover { background-color: #f8fafc; }
     </style>
 </head>
 <body>
 
-    <!-- BARRA FLOTANTE CONTROLADA POR VISUAL VIEWPORT -->
     <div id="barra-flotante" class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
@@ -196,7 +110,6 @@ Flotante 5
     </div>
 
     <script>
-        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ AL INICIAR LA PÁGINA ---
         (async function borrarCachePagina() {
             try {
                 if ('caches' in window) {
@@ -212,23 +125,19 @@ Flotante 5
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
+        let bloqueActual = 0;
         let totalColumnas = 0;
         const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
         const ANCHO_COL_18_MAS = 64;
 
-        // --- 2. BARRA FLOTANTE: SIGUE AL VISUAL VIEWPORT (ZOOM Y PANEO TÁCTIL) ---
         function reajustarBarraFlotante() {
             const barra = document.getElementById('barra-flotante');
             if (!barra || !window.visualViewport) return;
-
             const vv = window.visualViewport;
             const anchoLayout = document.documentElement.clientWidth;
-
             const desplX = vv.offsetLeft + vv.width - anchoLayout;
             const desplY = vv.offsetTop;
-
             barra.style.transform = `translate(${desplX}px, ${desplY}px) scale(${1 / vv.scale})`;
         }
 
@@ -238,7 +147,6 @@ Flotante 5
         }
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
-        // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
         let zoomUsuario = 1;
         let escalaBase = 1;
         const ZOOM_MAXIMO = 8;
@@ -248,21 +156,16 @@ Flotante 5
             if (nuevo < 0 || nuevo > 1) return;
             if (nuevo === 1 && totalColumnas <= LIMITE_PRIMER_BLOQUE) return;
             bloqueActual = nuevo;
-
             zoomUsuario = 1;
             aplicarZoomOptimo();
-
             reajustarBarraFlotante();
         }
 
-        function escalaActual() {
-            return escalaBase * zoomUsuario;
-        }
+        function escalaActual() { return escalaBase * zoomUsuario; }
 
         function aplicarEscala(escala) {
             const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
-
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
                 contenedor.style.width = "";
@@ -288,15 +191,11 @@ Flotante 5
 
             const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
             const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
-
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
-
             const anchoDisponible = document.documentElement.clientWidth - 30;
 
-            let anchoObjetivo;
-            let inicioBloque;
-
+            let anchoObjetivo, inicioBloque;
             if (bloqueActual === 0) {
                 anchoObjetivo = anchoBloque1;
                 inicioBloque = 0;
@@ -315,227 +214,138 @@ Flotante 5
 
             escalaBase = anchoDisponible / anchoObjetivo;
             aplicarEscala(escalaActual());
-
             tabla.style.visibility = "visible";
             visor.scrollLeft = inicioBloque * escalaActual();
-
             reajustarBarraFlotante();
         }
 
-        // --- 3b. ZOOM POR PELLIZCO SIMULADO ---
         let pellizco = null;
         let cuadroPendiente = false;
         let ultimoPunto = null;
 
-        function distanciaDedos(toques) {
-            return Math.hypot(toques[0].clientX - toques[1].clientX, toques[0].clientY - toques[1].clientY);
-        }
-
-        function puntoMedio(toques) {
-            return {
-                x: (toques[0].clientX + toques[1].clientX) / 2,
-                y: (toques[0].clientY + toques[1].clientY) / 2
-            };
-        }
+        function distanciaDedos(toques) { return Math.hypot(toques[0].clientX - toques[1].clientX, toques[0].clientY - toques[1].clientY); }
+        function puntoMedio(toques) { return { x: (toques[0].clientX + toques[1].clientX) / 2, y: (toques[0].clientY + toques[1].clientY) / 2 }; }
 
         document.addEventListener('touchstart', (e) => {
-            if (e.touches.length !== 2 || !totalColumnas) {
-                if (e.touches.length > 2) pellizco = null;
-                return;
-            }
-
+            if (e.touches.length !== 2 || !totalColumnas) { if (e.touches.length > 2) pellizco = null; return; }
             const visor = document.getElementById("visor-tabla");
             const r = visor.getBoundingClientRect();
             const p = puntoMedio(e.touches);
             const escala0 = escalaActual();
-
             pellizco = {
-                d0: distanciaDedos(e.touches),
-                zoom0: zoomUsuario,
-                izquierdaVisor: r.left,
-                contenidoX: (visor.scrollLeft + p.x - r.left) / escala0,
-                contenidoY: (p.y - r.top) / escala0,
+                d0: distanciaDedos(e.touches), zoom0: zoomUsuario, izquierdaVisor: r.left,
+                contenidoX: (visor.scrollLeft + p.x - r.left) / escala0, contenidoY: (p.y - r.top) / escala0,
                 topPagina: r.top + window.scrollY
             };
         }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
             if (!pellizco || e.touches.length !== 2) return;
-
             if (e.cancelable) e.preventDefault();
-
             const d = distanciaDedos(e.touches);
             zoomUsuario = Math.min(ZOOM_MAXIMO, Math.max(1, pellizco.zoom0 * (d / pellizco.d0)));
             ultimoPunto = puntoMedio(e.touches);
-
             if (cuadroPendiente) return;
             cuadroPendiente = true;
-
             requestAnimationFrame(() => {
                 cuadroPendiente = false;
                 if (!pellizco || !ultimoPunto) return;
-
                 const visor = document.getElementById("visor-tabla");
                 const escala = escalaActual();
-
                 aplicarEscala(escala);
-
                 visor.scrollLeft = pellizco.contenidoX * escala - (ultimoPunto.x - pellizco.izquierdaVisor);
                 window.scrollTo(window.scrollX, pellizco.contenidoY * escala + pellizco.topPagina - ultimoPunto.y);
             });
         }, { passive: false });
 
-        document.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) pellizco = null;
-        }, { passive: true });
-
+        document.addEventListener('touchend', (e) => { if (e.touches.length < 2) pellizco = null; }, { passive: true });
         document.addEventListener('touchcancel', () => { pellizco = null; }, { passive: true });
 
         ['gesturestart', 'gesturechange', 'gestureend'].forEach((nombre) => {
             document.addEventListener(nombre, (e) => e.preventDefault(), { passive: false });
         });
 
-        // --- 4. LECTOR CSV CON SOPORTE DE FILAS INTERMEDIAS VACÍAS ---
         function parsearCSV(texto) {
-            const filas = [];
-            let fila = [];
-            let celda = "";
-            let enComillas = false;
-
+            const filas = []; let fila = []; let celda = ""; let enComillas = false;
             for (let i = 0; i < texto.length; i++) {
                 const c = texto[i];
-
                 if (enComillas) {
                     if (c === '"') {
-                        if (texto[i + 1] === '"') { celda += '"'; i++; }
-                        else { enComillas = false; }
-                    } else {
-                        celda += c;
-                    }
-                } else if (c === '"') {
-                    enComillas = true;
-                } else if (c === ',') {
-                    fila.push(celda.trim());
-                    celda = "";
-                } else if (c === '\n' || c === '\r') {
+                        if (texto[i + 1] === '"') { celda += '"'; i++; } else { enComillas = false; }
+                    } else { celda += c; }
+                } else if (c === '"') { enComillas = true; } 
+                else if (c === ',') { fila.push(celda.trim()); celda = ""; } 
+                else if (c === '\n' || c === '\r') {
                     if (c === '\r' && texto[i + 1] === '\n') i++;
-                    fila.push(celda.trim());
-                    celda = "";
-                    filas.push(fila);
-                    fila = [];
-                } else {
-                    celda += c;
-                }
+                    fila.push(celda.trim()); celda = ""; filas.push(fila); fila = [];
+                } else { celda += c; }
             }
-            fila.push(celda.trim());
-            filas.push(fila);
-
-            let ultimaFilaConDatos = -1;
+            fila.push(celda.trim()); filas.push(fila);
+            let ultimaFila = -1;
             for (let i = filas.length - 1; i >= 0; i--) {
-                if (filas[i].some(v => v !== "")) {
-                    ultimaFilaConDatos = i;
-                    break;
-                }
+                if (filas[i].some(v => v !== "")) { ultimaFila = i; break; }
             }
-
-            if (ultimaFilaConDatos !== -1) {
-                return filas.slice(0, ultimaFilaConDatos + 1);
-            }
-
-            return [];
+            return ultimaFila !== -1 ? filas.slice(0, ultimaFila + 1) : [];
         }
 
-        function escaparHTML(t) {
-            return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
+        function escaparHTML(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
             try {
-                estado.innerText = "Descargando información en tiempo real...";
-
+                estado.innerText = "Descargando información...";
                 const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Date.now()}`;
-
-                const respuesta = await fetch(urlDirecta, {
-                    cache: 'no-store',
-                    headers: {
-                        'Pragma': 'no-cache',
-                        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
-                    }
-                });
-
-                if (!respuesta.ok) {
-                    throw new Error("Google no respondió correctamente. Revisa el enlace.");
-                }
+                const respuesta = await fetch(urlDirecta, { cache: 'no-store' });
+                if (!respuesta.ok) throw new Error("Google no respondió correctamente.");
 
                 const datosTexto = await respuesta.text();
-                estado.innerText = "Dibujando las filas de la tabla...";
-
+                estado.innerText = "Dibujando la tabla...";
                 const filas = parsearCSV(datosTexto);
                 if (filas.length === 0) throw new Error("La planilla no devolvió datos.");
 
                 const tablaHead = document.querySelector("#tabla-dinamica thead");
                 const tablaBody = document.querySelector("#tabla-dinamica tbody");
-
-                const claseColumna = (idx) =>
-                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
+                const claseColumna = (idx) => idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
 
                 totalColumnas = filas[0].length;
-
-                // Encabezados
                 let htmlHead = "<tr>";
-                for (let idx = 0; idx < totalColumnas; idx++) {
-                    const col = filas[0][idx] || "";
-                    const contenido = escaparHTML(col) || '&nbsp;';
-                    htmlHead += `<th ${claseColumna(idx)}>${contenido}</th>`;
-                }
+                for (let idx = 0; idx < totalColumnas; idx++) htmlHead += `<th ${claseColumna(idx)}>${escaparHTML(filas[0][idx]) || '&nbsp;'}</th>`;
                 htmlHead += "</tr>";
                 tablaHead.innerHTML = htmlHead;
 
-                // Filas de datos
                 let htmlBody = "";
                 for (let i = 1; i < filas.length; i++) {
                     htmlBody += "<tr>";
-                    for (let idx = 0; idx < totalColumnas; idx++) {
-                        const col = filas[i][idx] || "";
-                        const contenido = escaparHTML(col) || '&nbsp;';
-                        htmlBody += `<td ${claseColumna(idx)}>${contenido}</td>`;
-                    }
+                    for (let idx = 0; idx < totalColumnas; idx++) htmlBody += `<td ${claseColumna(idx)}>${escaparHTML(filas[i][idx]) || '&nbsp;'}</td>`;
                     htmlBody += "</tr>";
                 }
                 tablaBody.innerHTML = htmlBody;
 
                 estado.style.display = "none";
                 aplicarZoomOptimo();
-
             } catch (error) {
-                console.error("Detalle:", error);
-                estado.classList.add("error");
-                estado.innerText = "Error: " + error.message;
+                console.error(error);
+                estado.classList.add("error"); estado.innerText = "Error: " + error.message;
             }
         }
 
         let ultimoAncho = document.documentElement.clientWidth;
         window.addEventListener("resize", () => {
             const ancho = document.documentElement.clientWidth;
-            if (ancho !== ultimoAncho) {
-                ultimoAncho = ancho;
-                aplicarZoomOptimo();
-            }
+            if (ancho !== ultimoAncho) { ultimoAncho = ancho; aplicarZoomOptimo(); }
         });
 
-        // --- 5. EXPORTACIÓN A ARCHIVO BINARIO .DOCX REAL Y NATIVO ---
+        // --- 5. EXPORTACIÓN CON DOCX V7.3.0 ---
         async function exportarADocx() {
-            // Detección segura de la librería cargada en window
-            const docxLib = window.docx || (window.docx ? window.docx.default : null);
+            const docxLib = window.docx;
 
-            if (!docxLib || !docxLib.TableCell) {
-                alert("La librería para generar archivos Word aún se está cargando. Comprueba tu conexión e inténtalo de nuevo.");
+            // Validación de seguridad para asegurarse que cargó correctamente
+            if (!docxLib || !docxLib.Document) {
+                alert("La librería docx.js no ha cargado completamente. Espera unos segundos o recarga la página.");
                 return;
             }
 
             const tablaOriginal = document.getElementById('tabla-dinamica');
-            
             if (!tablaOriginal || tablaOriginal.rows.length === 0 || totalColumnas < 19) {
                 alert("No hay suficientes datos para exportar (se requiere al menos llegar a la columna 19).");
                 return;
@@ -548,7 +358,6 @@ Flotante 5
             try {
                 const filasDocx = [];
 
-                // Recorrer filas de la tabla desde Columna 19 (índice 18)
                 for (let i = 0; i < tablaOriginal.rows.length; i++) {
                     const filaObj = tablaOriginal.rows[i];
                     const celdasDocx = [];
@@ -564,7 +373,7 @@ Flotante 5
                                         new docxLib.TextRun({
                                             text: textoCelda,
                                             bold: esHeader,
-                                            size: 18, // 9pt
+                                            size: 18, 
                                             font: "Calibri"
                                         })
                                     ],
@@ -585,49 +394,30 @@ Flotante 5
                     }
                 }
 
-                // Construcción del documento .docx nativo en Formato Vertical
                 const doc = new docxLib.Document({
                     sections: [{
                         properties: {
-                            page: {
-                                size: {
-                                    orientation: docxLib.PageOrientation.PORTRAIT // Orientación Vertical
-                                },
-                                margin: {
-                                    top: 567,    // ~1 cm en twips
-                                    bottom: 567,
-                                    left: 567,
-                                    right: 567
-                                }
-                            }
+                            page: { margin: { top: 567, bottom: 567, left: 567, right: 567 } }
                         },
                         children: [
                             new docxLib.Table({
                                 rows: filasDocx,
-                                width: {
-                                    size: 100,
-                                    type: docxLib.WidthType.PERCENTAGE // Maximiza la tabla al 100% del ancho
-                                }
+                                width: { size: 100, type: docxLib.WidthType.PERCENTAGE }
                             })
                         ]
                     }]
                 });
 
-                // Generar blob binario de Word y descargar con FileSaver
                 const blob = await docxLib.Packer.toBlob(doc);
                 if (window.saveAs) {
-                    window.saveAs(blob, "Exportacion_Columnas_19_Mas.docx");
+                    window.saveAs(blob, "Datos_Exportados.docx");
                 } else {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.href = url;
-                    a.download = "Exportacion_Columnas_19_Mas.docx";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
+                    a.href = url; a.download = "Datos_Exportados.docx";
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                 }
-
             } catch (err) {
                 console.error(err);
                 alert("Ocurrió un error al generar el archivo Word: " + err.message);
@@ -637,7 +427,6 @@ Flotante 5
             }
         }
 
-        // Ejecutar carga de datos inicial
         cargarTabla();
     </script>
 
