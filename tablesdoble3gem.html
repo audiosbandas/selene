@@ -1,4 +1,4 @@
-gem 3. corrección Word 3
+gem 3. corrección Word 4
 
 
 
@@ -556,7 +556,7 @@ gem 3. corrección Word 3
             }
         }
 
-        // --- 5. NUEVA FUNCIÓN: EXPORTAR A .DOCX REAL EN FORMATO VERTICAL Y AJUSTADO ---
+        // --- 5. EXPORTACIÓN ROBUSTA A .DOCX (COMPATIBLE CON MS OFFICE WORD) ---
         function exportarDesdeCol19Docx() {
             const tabla = document.getElementById("tabla-dinamica");
             if (!tabla || !tabla.querySelector("tbody") || tabla.querySelector("tbody").rows.length === 0) {
@@ -572,80 +572,94 @@ gem 3. corrección Word 3
                 return;
             }
 
-            let filasXML = "";
+            let filasHTMLInterno = "";
 
             // Encabezados
-            filasXML += "<w:tr>";
+            filasHTMLInterno += "<tr>";
             for (let i = INDICE_INICIO; i < theadCells.length; i++) {
-                const texto = escaparXML(theadCells[i].innerText.trim());
-                filasXML += `
-                    <w:tc>
-                        <w:tcPr>
-                            <w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>
-                        </w:tcPr>
-                        <w:p>
-                            <w:r>
-                                <w:rPr><w:b/><w:color w:val="475569"/></w:rPr>
-                                <w:t>${texto}</w:t>
-                            </w:r>
-                        </w:p>
-                    </w:tc>`;
+                filasHTMLInterno += `<th style="background-color: #f1f5f9; color: #475569; font-weight: bold; border: 1px solid #cbd5e1; padding: 6px 8px;">${escaparXML(theadCells[i].innerText.trim())}</th>`;
             }
-            filasXML += "</w:tr>";
+            filasHTMLInterno += "</tr>";
 
             // Filas de datos
             const tbodyRows = tabla.querySelectorAll("tbody tr");
             tbodyRows.forEach(tr => {
                 const tdCells = tr.querySelectorAll("td");
                 if (tdCells.length > INDICE_INICIO) {
-                    filasXML += "<w:tr>";
+                    filasHTMLInterno += "<tr>";
                     for (let i = INDICE_INICIO; i < tdCells.length; i++) {
-                        const texto = escaparXML(tdCells[i].innerText.trim());
-                        filasXML += `
-                            <w:tc>
-                                <w:p>
-                                    <w:r>
-                                        <w:t>${texto}</w:t>
-                                    </w:r>
-                                </w:p>
-                            </w:tc>`;
+                        filasHTMLInterno += `<td style="border: 1px solid #cbd5e1; padding: 6px 8px;">${escaparXML(tdCells[i].innerText.trim())}</td>`;
                     }
-                    filasXML += "</w:tr>";
+                    filasHTMLInterno += "</tr>";
                 }
             });
 
-            // XML estructurado bajo el estándar Flat OPC (WordprocessingML) para extensión .docx limpia y vertical
-            const contenidoWordML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<?mso-application progid="Word.Document"?>
-<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml" xmlns:aml="http://schemas.microsoft.com/aml/2001/core" xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wx="http://schemas.microsoft.com/office/word/2003/auxHint" xmlns:w10="urn:schemas-microsoft-com:office:word10" xmlns:sl="http://schemas.microsoft.com/office/word/2003/smartTag">
-    <w:body>
-        <w:p>
-            <w:r><w:rPr><w:b/><w:sz w:val="28"/><w:color w:val="0F172A"/></w:rPr><w:t>Mis Datos (Desde Columna 19)</w:t></w:r>
-        </w:p>
-        <w:p/>
-        <w:tbl>
-            <w:tblPr>
-                <w:tblW w:w="0" w:type="auto"/>
-                <w:tblBorders>
-                    <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-                    <w:left w:val="none"/>
-                    <w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-                    <w:right w:val="none"/>
-                    <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-                    <w:insideV w:val="none"/>
-                </w:tblBorders>
-            </w:tblPr>
-            ${filasXML}
-        </w:tbl>
-        <w:sectPr>
-            <!-- Configuración explícita vertical A4 y ajuste al ancho útil -->
-            <w:pgSz w:w="11906" w:h="16838"/>
-            <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>
-        </w:sectPr>
-    </w:body>
-</w:wordDocument>`;
+            // Usamos un contenedor HTML con formato MHTML/Word compatible para evitar el error de archivo dañado nativo de Word al abrir .docx web
+            const contenidoDocx = `MIME-Version: 1.0
+Content-Base: http://localhost/
+Content-Type: Multipart/Related; boundary="----=_NextPart_01"
 
-            const blob = new Blob([contenidoWordML], {
+------=_NextPart_01
+Content-Location: http://localhost/document.htm
+Content-Type: text/html; charset="utf-8"
+
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Datos Columna 19</title>
+<!--[if gte mso 9]>
+<xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:TrackMoves>false</w:TrackMoves>
+<w:TrackFormatting/>
+<w:PunctuationKerning/>
+<w:ValidateAgainstSchema/>
+<w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+<w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+<w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+<w:Compatibility>
+<w:BreakWrappedTables/>
+<w:SnapToGridInCell/>
+<w:WrapTextWithPunct/>
+<w:UseAsianBreakRules/>
+<w:DontGrowAutofit/>
+</w:Compatibility>
+<w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+</w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+@page Section1 {
+    size: 21cm 29.7cm;
+    margin: 1.5cm;
+}
+div.Section1 {
+    page: Section1;
+}
+body {
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+    color: #1e293b;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+</style>
+</head>
+<body>
+<div class="Section1">
+    <h2 style="color: #0f172a; font-size: 14pt; margin-bottom: 15px;">Mis Datos (Desde Columna 19)</h2>
+    <table>
+        ${filasHTMLInterno}
+    </table>
+</div>
+</body>
+</html>
+------=_NextPart_01--`;
+
+            const blob = new Blob([contenidoDocx], {
                 type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             });
 
