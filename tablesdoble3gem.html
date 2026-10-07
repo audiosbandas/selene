@@ -1,4 +1,4 @@
-gem 3. corrección Word 4
+gem 3. corrección Word 5
 
 
 
@@ -572,94 +572,61 @@ gem 3. corrección Word 4
                 return;
             }
 
-            let filasHTMLInterno = "";
+            let filasXMLInterno = "";
 
             // Encabezados
-            filasHTMLInterno += "<tr>";
+            filasXMLInterno += "<w:tr>";
             for (let i = INDICE_INICIO; i < theadCells.length; i++) {
-                filasHTMLInterno += `<th style="background-color: #f1f5f9; color: #475569; font-weight: bold; border: 1px solid #cbd5e1; padding: 6px 8px;">${escaparXML(theadCells[i].innerText.trim())}</th>`;
+                filasXMLInterno += `
+                    <w:tc>
+                        <w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/></w:tcPr>
+                        <w:p><w:r><w:rPr><w:b/><w:color w:val="475569"/></w:rPr><w:t>${escaparXML(theadCells[i].innerText.trim())}</w:t></w:r></w:p>
+                    </w:tc>`;
             }
-            filasHTMLInterno += "</tr>";
+            filasXMLInterno += "</w:tr>";
 
             // Filas de datos
             const tbodyRows = tabla.querySelectorAll("tbody tr");
             tbodyRows.forEach(tr => {
                 const tdCells = tr.querySelectorAll("td");
                 if (tdCells.length > INDICE_INICIO) {
-                    filasHTMLInterno += "<tr>";
+                    filasXMLInterno += "<w:tr>";
                     for (let i = INDICE_INICIO; i < tdCells.length; i++) {
-                        filasHTMLInterno += `<td style="border: 1px solid #cbd5e1; padding: 6px 8px;">${escaparXML(tdCells[i].innerText.trim())}</td>`;
+                        filasXMLInterno += `
+                            <w:tc>
+                                <w:p><w:r><w:t>${escaparXML(tdCells[i].innerText.trim())}</w:t></w:r></w:p>
+                            </w:tc>`;
                     }
-                    filasHTMLInterno += "</tr>";
+                    filasXMLInterno += "</w:tr>";
                 }
             });
 
-            // Usamos un contenedor HTML con formato MHTML/Word compatible para evitar el error de archivo dañado nativo de Word al abrir .docx web
-            const contenidoDocx = `MIME-Version: 1.0
-Content-Base: http://localhost/
-Content-Type: Multipart/Related; boundary="----=_NextPart_01"
+            // Estructura XML nativa de WordprocessingML (formato .docx basado en XML plano compatible)
+            const contenidoWordXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?mso-application progid="Word.Document"?>
+<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml" xmlns:aml="http://schemas.microsoft.com/office/word/2003/aml" xmlns:wpc="http://schemas.microsoft.com/office/word/2003/wordml" xmlns:wx="http://schemas.microsoft.com/office/word/2003/wx" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
+      <w:r><w:rPr><w:b/><w:sz w:val="28"/><w:color w:val="0F172A"/></w:rPr><w:t>Mis Datos (Desde Columna 19)</w:t></w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        </w:tblBorders>
+      </w:tblPr>
+      ${filasXMLInterno}
+    </w:tbl>
+  </w:body>
+</w:wordDocument>`;
 
-------=_NextPart_01
-Content-Location: http://localhost/document.htm
-Content-Type: text/html; charset="utf-8"
-
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta charset="utf-8">
-<title>Datos Columna 19</title>
-<!--[if gte mso 9]>
-<xml>
-<w:WordDocument>
-<w:View>Print</w:View>
-<w:TrackMoves>false</w:TrackMoves>
-<w:TrackFormatting/>
-<w:PunctuationKerning/>
-<w:ValidateAgainstSchema/>
-<w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
-<w:IgnoreMixedContent>false</w:IgnoreMixedContent>
-<w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
-<w:Compatibility>
-<w:BreakWrappedTables/>
-<w:SnapToGridInCell/>
-<w:WrapTextWithPunct/>
-<w:UseAsianBreakRules/>
-<w:DontGrowAutofit/>
-</w:Compatibility>
-<w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
-</w:WordDocument>
-</xml>
-<![endif]-->
-<style>
-@page Section1 {
-    size: 21cm 29.7cm;
-    margin: 1.5cm;
-}
-div.Section1 {
-    page: Section1;
-}
-body {
-    font-family: Arial, sans-serif;
-    font-size: 9pt;
-    color: #1e293b;
-}
-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-</style>
-</head>
-<body>
-<div class="Section1">
-    <h2 style="color: #0f172a; font-size: 14pt; margin-bottom: 15px;">Mis Datos (Desde Columna 19)</h2>
-    <table>
-        ${filasHTMLInterno}
-    </table>
-</div>
-</body>
-</html>
-------=_NextPart_01--`;
-
-            const blob = new Blob([contenidoDocx], {
+            const blob = new Blob([contenidoWordXML], {
                 type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             });
 
