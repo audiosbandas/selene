@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 5
+Flotante 6
 
 
 </BR></BR></BR>
@@ -12,7 +12,10 @@ Flotante 5
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- HABILITAMOS NUEVAMENTE EL ZOOM TÁCTIL (user-scalable=yes) -->
+    <!-- FORZAR AL NAVEGADOR A NO USAR CACHÉ DE LA PÁGINA -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <style>
@@ -50,7 +53,7 @@ Flotante 5
             border-radius: 8px;
             box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
             border: 1px solid #cbd5e1;
-            transform-origin: top right; /* Anclada en la esquina superior derecha */
+            transform-origin: top right;
             will-change: transform;
         }
 
@@ -104,6 +107,7 @@ Flotante 5
             display: inline-block;
             width: max-content;
             transform-origin: top left;
+            touch-action: pan-y; /* Permite scroll vertical mientras captura gestos horizontales */
         }
 
         table { 
@@ -114,6 +118,7 @@ Flotante 5
             border-radius: 8px; 
             visibility: hidden; 
             table-layout: fixed; 
+            transition: transform 0.2s ease-out;
         }
         
         th, td { 
@@ -165,15 +170,28 @@ Flotante 5
     </div>
 
     <script>
+        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ AL INICIAR LA PÁGINA ---
+        (async function borrarCachePagina() {
+            try {
+                if ('caches' in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(key => caches.delete(key)));
+                }
+                sessionStorage.clear();
+            } catch (e) {
+                console.warn("No se pudo borrar parte de la caché local:", e);
+            }
+        })();
+
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        let bloqueActual = 1; 
+        let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
         const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
         const ANCHO_COL_18_MAS = 64;
 
-        // --- SISTEMA DE SEGUIMIENTO DE ZOOM Y SCROLL TÁCTIL ---
+        // --- 2. CONTROL VISUAL VIEWPORT (ZOOM TÁCTIL Y SEGUIMIENTO) ---
         function reajustarBarraFlotante() {
             const barra = document.getElementById('barra-flotante');
             if (!barra) return;
@@ -183,7 +201,6 @@ Flotante 5
                 const offsetLeft = window.visualViewport.offsetLeft;
                 const offsetTop = window.visualViewport.offsetTop;
 
-                // Compensar el zoom y el desplazamiento táctil para mantener la barra fija en el visor actual
                 barra.style.transform = `translate(${offsetLeft}px, ${offsetTop}px) scale(${1 / scale})`;
             }
         }
@@ -194,7 +211,37 @@ Flotante 5
         }
         window.addEventListener('scroll', reajustarBarraFlotante);
 
-        // --- NAVEGACIÓN Y ESCALADO DE TABLA ---
+        // --- 3. GESTOS TÁCTILES DE DESPLAZAMIENTO (SWIPE) ENTRE PÁGINAS ---
+        let startX = 0;
+        let startY = 0;
+        const contenedorEscalado = document.getElementById('contenedor-escalado');
+
+        contenedorEscalado.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        contenedorEscalado.addEventListener('touchend', (e) => {
+            if (e.changedTouches.length === 1) {
+                const diffX = e.changedTouches[0].clientX - startX;
+                const diffY = e.changedTouches[0].clientY - startY;
+
+                // Verificar que la intención del usuario sea un desplazamiento horizontal y no vertical
+                if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+                    if (diffX < 0 && bloqueActual === 0) {
+                        // Swipe hacia la izquierda: Ir a la página Derecha
+                        cambiarBloque(1);
+                    } else if (diffX > 0 && bloqueActual === 1) {
+                        // Swipe hacia la derecha: Ir a la página Izquierda
+                        cambiarBloque(-1);
+                    }
+                }
+            }
+        }, { passive: true });
+
+        // --- 4. NAVEGACIÓN Y ESCALADO OPTIMIZADO ---
         function cambiarBloque(direccion) {
             bloqueActual += direccion;
             aplicarZoomOptimo();
@@ -218,7 +265,6 @@ Flotante 5
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
 
-            // Tomar el ancho visible real según el zoom táctil o tamaño de ventana activa
             const anchoVisibleReal = window.visualViewport ? window.visualViewport.width : window.innerWidth;
             const anchoDisponible = anchoVisibleReal - 30;
 
@@ -226,7 +272,7 @@ Flotante 5
             let desplazamientoX = 0;
 
             if (bloqueActual === 0) {
-                // PRIMER BLOQUE (Cols 1 a 17)
+                // PÁGINA IZQUIERDA (Cols 1 a 17)
                 anchoObjetivo = anchoBloque1;
                 desplazamientoX = 0;
 
@@ -234,7 +280,7 @@ Flotante 5
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${colsBloque1}`;
             } else {
-                // SEGUNDO BLOQUE (Cols 18 en adelante)
+                // PÁGINA DERECHA (Cols 18 en adelante)
                 anchoObjetivo = anchoBloque2;
                 desplazamientoX = -anchoBloque1;
 
@@ -257,8 +303,6 @@ Flotante 5
             }
 
             tabla.style.visibility = "visible";
-
-            // Reajustar inmediatamente la barra flotante tras el cambio de bloque
             reajustarBarraFlotante();
         }
 
@@ -267,10 +311,11 @@ Flotante 5
             try {
                 estado.innerText = "Descargando información en tiempo real...";
 
-                const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Math.random()}`;
+                // Añadir parámetro nocache único para forzar respuesta fresca desde la red
+                const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Date.now()}`;
 
                 const respuesta = await fetch(urlDirecta, {
-                    cache: 'reload',
+                    cache: 'no-store',
                     headers: {
                         'Pragma': 'no-cache',
                         'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
@@ -347,5 +392,6 @@ Flotante 5
 
 </body>
 </html>
+
 
 
