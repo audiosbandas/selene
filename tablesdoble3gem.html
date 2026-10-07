@@ -1,4 +1,4 @@
-gem 3. corrección Word 5
+gem 3. corrección Word 6
 
 
 
@@ -19,7 +19,7 @@ gem 3. corrección Word 5
         }
 
         html, body {
-            touch-action: pan-x pan-y; /* permite desplazarse, bloquea el zoom nativo por pellizco/doble toque */
+            touch-action: pan-x pan-y;
             margin: 0;
             padding: 0;
             background-color: #f8fafc;
@@ -106,7 +106,6 @@ gem 3. corrección Word 5
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
 
-        /* Visor con desplazamiento táctil horizontal sobre la tabla completa */
         #visor-tabla {
             width: 100%;
             overflow-x: auto;
@@ -115,7 +114,6 @@ gem 3. corrección Word 5
             touch-action: pan-x pan-y;
         }
 
-        /* Contenedor SIN restricciones de gestos: permite pellizco, scroll y paneo natural */
         #contenedor-escalado {
             display: block;
             width: max-content;
@@ -140,19 +138,16 @@ gem 3. corrección Word 5
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
             white-space: nowrap;
-            overflow: visible; /* el texto puede traspasar el ancho de la celda */
+            overflow: visible;
             position: relative;
         }
 
-        /* Contenedor de altura fija: el alto de la fila no depende del texto */
         .celda {
             position: relative;
             height: 1.3em;
             line-height: 1.3;
         }
 
-        /* El texto sale del flujo de la celda, alineado a la izquierda.
-           Su ancho máximo (inline) = celda + celdas vecinas vacías a la derecha */
         .celda > span {
             position: absolute;
             top: 0;
@@ -182,7 +177,6 @@ gem 3. corrección Word 5
 </head>
 <body>
 
-    <!-- BARRA FLOTANTE CONTROLADA POR VISUAL VIEWPORT -->
     <div id="barra-flotante" class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
@@ -203,7 +197,6 @@ gem 3. corrección Word 5
     </div>
 
     <script>
-        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ AL INICIAR LA PÁGINA ---
         (async function borrarCachePagina() {
             try {
                 if ('caches' in window) {
@@ -219,13 +212,12 @@ gem 3. corrección Word 5
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
+        let bloqueActual = 0;
         let totalColumnas = 0;
         const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
         const ANCHO_COL_18_MAS = 64;
 
-        // --- 2. BARRA FLOTANTE: SIGUE AL VISUAL VIEWPORT (ZOOM Y PANEO TÁCTIL) ---
         function reajustarBarraFlotante() {
             const barra = document.getElementById('barra-flotante');
             if (!barra || !window.visualViewport) return;
@@ -245,7 +237,6 @@ gem 3. corrección Word 5
         }
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
-        // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
         let zoomUsuario = 1;
         let escalaBase = 1;
         const ZOOM_MAXIMO = 8;
@@ -258,7 +249,6 @@ gem 3. corrección Word 5
 
             zoomUsuario = 1;
             aplicarZoomOptimo();
-
             reajustarBarraFlotante();
         }
 
@@ -298,7 +288,6 @@ gem 3. corrección Word 5
 
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
-
             const anchoDisponible = document.documentElement.clientWidth - 30;
 
             let anchoObjetivo;
@@ -325,11 +314,9 @@ gem 3. corrección Word 5
 
             tabla.style.visibility = "visible";
             visor.scrollLeft = inicioBloque * escalaActual();
-
             reajustarBarraFlotante();
         }
 
-        // --- 3b. ZOOM POR PELLIZCO SIMULADO ---
         let pellizco = null;
         let cuadroPendiente = false;
         let ultimoPunto = null;
@@ -368,7 +355,6 @@ gem 3. corrección Word 5
 
         document.addEventListener('touchmove', (e) => {
             if (!pellizco || e.touches.length !== 2) return;
-
             if (e.cancelable) e.preventDefault();
 
             const d = distanciaDedos(e.touches);
@@ -386,7 +372,6 @@ gem 3. corrección Word 5
                 const escala = escalaActual();
 
                 aplicarEscala(escala);
-
                 visor.scrollLeft = pellizco.contenidoX * escala - (ultimoPunto.x - pellizco.izquierdaVisor);
                 window.scrollTo(window.scrollX, pellizco.contenidoY * escala + pellizco.topPagina - ultimoPunto.y);
             });
@@ -402,7 +387,6 @@ gem 3. corrección Word 5
             document.addEventListener(nombre, (e) => e.preventDefault(), { passive: false });
         });
 
-        // --- 4. LECTOR CSV CON SOPORTE DE FILAS VACÍAS Y RECORTE FINAL ---
         function parsearCSV(texto) {
             const filas = [];
             let fila = [];
@@ -428,7 +412,7 @@ gem 3. corrección Word 5
                     if (c === '\r' && texto[i + 1] === '\n') i++;
                     fila.push(celda.trim());
                     celda = "";
-                    filas.push(fila); // Conserva las filas intermedias vacías
+                    filas.push(fila);
                     fila = [];
                 } else {
                     celda += c;
@@ -437,7 +421,6 @@ gem 3. corrección Word 5
             fila.push(celda.trim());
             filas.push(fila);
 
-            // Buscar la última fila que contenga al menos una celda con datos
             let ultimaFilaConDatos = -1;
             for (let i = filas.length - 1; i >= 0; i--) {
                 if (filas[i].some(v => v !== "")) {
@@ -446,11 +429,9 @@ gem 3. corrección Word 5
                 }
             }
 
-            // Recortar las filas vacías que estén después de la última fila con datos
             if (ultimaFilaConDatos !== -1) {
                 return filas.slice(0, ultimaFilaConDatos + 1);
             }
-
             return [];
         }
 
@@ -463,7 +444,6 @@ gem 3. corrección Word 5
                 .replace(/'/g, "&apos;");
         }
 
-        // --- 4b. DESBORDAMIENTO DEL TEXTO SOBRE CELDAS VECINAS VACÍAS ---
         function anchoColumna(idx) {
             return idx < LIMITE_PRIMER_BLOQUE ? ANCHO_COL_1_17 : ANCHO_COL_18_MAS;
         }
@@ -522,7 +502,6 @@ gem 3. corrección Word 5
 
                 totalColumnas = filas[0].length;
 
-                // Encabezado
                 const anchosEnc = anchosDisponibles(filas[0], totalColumnas);
                 let htmlHead = "<tr>";
                 for (let idx = 0; idx < totalColumnas; idx++) {
@@ -532,7 +511,6 @@ gem 3. corrección Word 5
                 htmlHead += "</tr>";
                 tablaHead.innerHTML = htmlHead;
 
-                // Cuerpo
                 let htmlBody = "";
                 for (let i = 1; i < filas.length; i++) {
                     const fila = filas[i];
@@ -556,7 +534,7 @@ gem 3. corrección Word 5
             }
         }
 
-        // --- 5. EXPORTACIÓN ROBUSTA A .DOCX (COMPATIBLE CON MS OFFICE WORD) ---
+        // --- 5. EXPORTACIÓN COMPATIBLE A .DOCX (MIME MHTML ESTÁNDAR PARA OFFICE) ---
         function exportarDesdeCol19Docx() {
             const tabla = document.getElementById("tabla-dinamica");
             if (!tabla || !tabla.querySelector("tbody") || tabla.querySelector("tbody").rows.length === 0) {
@@ -572,62 +550,58 @@ gem 3. corrección Word 5
                 return;
             }
 
-            let filasXMLInterno = "";
+            let filasHTML = "";
 
             // Encabezados
-            filasXMLInterno += "<w:tr>";
+            filasHTML += "<tr style='background-color: #f1f5f9;'>";
             for (let i = INDICE_INICIO; i < theadCells.length; i++) {
-                filasXMLInterno += `
-                    <w:tc>
-                        <w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/></w:tcPr>
-                        <w:p><w:r><w:rPr><w:b/><w:color w:val="475569"/></w:rPr><w:t>${escaparXML(theadCells[i].innerText.trim())}</w:t></w:r></w:p>
-                    </w:tc>`;
+                filasHTML += `<th style="border: 1px solid #cbd5e1; padding: 6px; font-weight: bold; color: #475569; text-align: left;">${escaparXML(theadCells[i].innerText.trim())}</th>`;
             }
-            filasXMLInterno += "</w:tr>";
+            filasHTML += "</tr>";
 
             // Filas de datos
             const tbodyRows = tabla.querySelectorAll("tbody tr");
-            tbodyRows.forEach(tr => {
+            tbodyRows.forEach((tr, index) => {
                 const tdCells = tr.querySelectorAll("td");
                 if (tdCells.length > INDICE_INICIO) {
-                    filasXMLInterno += "<w:tr>";
+                    const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                    filasHTML += `<tr style='background-color: ${bgColor};'>`;
                     for (let i = INDICE_INICIO; i < tdCells.length; i++) {
-                        filasXMLInterno += `
-                            <w:tc>
-                                <w:p><w:r><w:t>${escaparXML(tdCells[i].innerText.trim())}</w:t></w:r></w:p>
-                            </w:tc>`;
+                        filasHTML += `<td style="border: 1px solid #cbd5e1; padding: 6px; text-align: left;">${escaparXML(tdCells[i].innerText.trim())}</td>`;
                     }
-                    filasXMLInterno += "</w:tr>";
+                    filasHTML += "</tr>";
                 }
             });
 
-            // Estructura XML nativa de WordprocessingML (formato .docx basado en XML plano compatible)
-            const contenidoWordXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<?mso-application progid="Word.Document"?>
-<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml" xmlns:aml="http://schemas.microsoft.com/office/word/2003/aml" xmlns:wpc="http://schemas.microsoft.com/office/word/2003/wordml" xmlns:wx="http://schemas.microsoft.com/office/word/2003/wx" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <w:body>
-    <w:p>
-      <w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
-      <w:r><w:rPr><w:b/><w:sz w:val="28"/><w:color w:val="0F172A"/></w:rPr><w:t>Mis Datos (Desde Columna 19)</w:t></w:r>
-    </w:p>
-    <w:tbl>
-      <w:tblPr>
-        <w:tblBorders>
-          <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-          <w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-          <w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-        </w:tblBorders>
-      </w:tblPr>
-      ${filasXMLInterno}
-    </w:tbl>
-  </w:body>
-</w:wordDocument>`;
+            // Contenedor MHTML compatible con Word de escritorio (.docx)
+            const contenidoMHTML = `MIME-Version: 1.0
+Content-Type: multipart/related; boundary="----=_NextPart_01"
 
-            const blob = new Blob([contenidoWordXML], {
-                type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+------=_NextPart_01
+Content-Type: text/html; charset="utf-8"
+Content-Location: file:///C:/document.htm
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style>
+  body { font-family: sans-serif; color: #1e293b; }
+  h2 { color: #0f172a; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+    <h2>Mis Datos (Desde Columna 19)</h2>
+    <table>
+        ${filasHTML}
+    </table>
+</body>
+</html>
+------=_NextPart_01--`;
+
+            const blob = new Blob([contenidoMHTML], {
+                type: 'application/msword'
             });
 
             const fechaActual = new Date().toISOString().slice(0, 10);
