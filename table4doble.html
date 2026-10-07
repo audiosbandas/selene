@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 5
+Flotante 6
 
 
 </BR></BR></BR>
@@ -17,7 +17,7 @@ Flotante 5
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
-    <!-- VIEWPORT TOTALMENTE LIBRE Y NATIVO (Zoom táctil activo) -->
+    <!-- VIEWPORT TOTALMENTE NATIVO (Zoom táctil activo) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <title>Tabla Dinámica Paginada - Google Sheets</title>
@@ -34,7 +34,7 @@ Flotante 5
             background-color: #f8fafc;
             color: #1e293b;
             font-family: sans-serif;
-            /* Scroll nativo total e incondicional */
+            /* Permite el scroll nativo completo */
             overflow-x: auto;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
@@ -45,7 +45,7 @@ Flotante 5
             padding-top: 65px;
         }
 
-        /* BARRA FLOTANTE CON RE-POSICIONAMIENTO DINÁMICO */
+        /* BARRA FLOTANTE DE CONTROLES */
         .controles-paginado-flotantes {
             position: fixed;
             top: 10px;
@@ -111,8 +111,7 @@ Flotante 5
 
         /* MARCO Y ESCALADO */
         #marco-tabla {
-            position: relative;
-            display: block;
+            display: inline-block;
             overflow: visible;
         }
 
@@ -155,6 +154,11 @@ Flotante 5
             min-width: 64px !important;
             max-width: 64px !important;
         }
+
+        /* CLASE PARA OCULTAR COLUMNAS FUERA DEL BLOQUE SELECCIONADO */
+        .col-oculta {
+            display: none !important;
+        }
         
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
         tr:hover { background-color: #f8fafc; }
@@ -162,7 +166,7 @@ Flotante 5
 </head>
 <body>
 
-    <!-- BARRA FLOTANTE DE NAVEGACIÓN -->
+    <!-- BARRA FLOTANTE -->
     <div id="barra-flotante" class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
@@ -182,7 +186,7 @@ Flotante 5
     </div>
 
     <script>
-        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ ---
+        // --- 1. LIMPIEZA DE CACHÉ EN CADA CARGA ---
         (async function borrarCachePagina() {
             try {
                 if ('caches' in window) {
@@ -198,12 +202,12 @@ Flotante 5
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        let bloqueActual = 0; // 0 = Bloque Izquierda (Cols 1-17), 1 = Bloque Derecha (Cols 18+)
+        let bloqueActual = 0; // 0 = Cols 1-17, 1 = Cols 18+
         const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
         const ANCHO_COL_18_MAS = 64;
 
-        // --- 2. RESYNCRONIZAR LA BARRA FLOTANTE CON EL ZOOM TÁCTIL ---
+        // --- 2. RESYNCRONIZAR LA BARRA FLOTANTE CON ZOOM TÁCTIL ---
         function reajustarBarraFlotante() {
             const barra = document.getElementById('barra-flotante');
             if (!barra) return;
@@ -223,7 +227,7 @@ Flotante 5
         }
         window.addEventListener('scroll', reajustarBarraFlotante);
 
-        // --- 3. RE-ESCALADO PRECISO AL PRESIONAR SIGUIENTE/ANTERIOR ---
+        // --- 3. CAMBIO DE BLOQUE Y RE-ESCALADO EXACTO SEGÚN ANCHO DE GRUPO ---
         function cambiarBloque(direccion) {
             bloqueActual += direccion;
             aplicarZoomOptimo();
@@ -241,55 +245,62 @@ Flotante 5
             if (!primeraFila) return;
 
             const totalColumnas = primeraFila.children.length;
-
             const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
             const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
 
-            const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
-            const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
-            const anchoTotalTabla = anchoBloque1 + anchoBloque2;
+            // Mostrar u ocultar celdas según el bloque activo
+            const filas = tabla.querySelectorAll("tr");
+            filas.forEach(fila => {
+                const celdas = fila.children;
+                for (let i = 0; i < celdas.length; i++) {
+                    if (bloqueActual === 0) {
+                        // Mostrar grupo 1 (Cols 1-17), ocultar grupo 2
+                        if (i < LIMITE_PRIMER_BLOQUE) {
+                            celdas[i].classList.remove("col-oculta");
+                        } else {
+                            celdas[i].classList.add("col-oculta");
+                        }
+                    } else {
+                        // Mostrar grupo 2 (Cols 18+), ocultar grupo 1
+                        if (i >= LIMITE_PRIMER_BLOQUE) {
+                            celdas[i].classList.remove("col-oculta");
+                        } else {
+                            celdas[i].classList.add("col-oculta");
+                        }
+                    }
+                }
+            });
 
-            const anchoVisibleReal = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-            const anchoDisponible = anchoVisibleReal - 30; // Margen interno
-
-            let anchoObjetivo = 0;
-            let scrollDestinoX = 0;
-
+            // Ancho del grupo visible según especificación
+            let anchoGrupoVisible = 0;
             if (bloqueActual === 0) {
-                // BLOQUE 1 (Cols 1 a 17)
-                anchoObjetivo = anchoBloque1;
-                scrollDestinoX = 0;
-
+                anchoGrupoVisible = colsBloque1 * ANCHO_COL_1_17;
                 btnPrev.disabled = true;
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${colsBloque1}`;
             } else {
-                // BLOQUE 2 (Cols 18 en adelante)
-                anchoObjetivo = anchoBloque2;
-                scrollDestinoX = anchoBloque1;
-
+                anchoGrupoVisible = colsBloque2 * ANCHO_COL_18_MAS;
                 btnPrev.disabled = false;
                 btnNext.disabled = true;
                 indicador.innerText = `Cols ${LIMITE_PRIMER_BLOQUE + 1} - ${totalColumnas}`;
             }
 
-            if (anchoObjetivo === 0) return;
+            if (anchoGrupoVisible === 0) return;
 
-            // Factor de escala exacto según la definición previa
-            const escala = anchoDisponible / anchoObjetivo;
+            // Ancho de pantalla real
+            const anchoPantalla = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+            const anchoDisponible = anchoPantalla - 30; // Margen de confort
 
-            // Aplicar escala CSS
+            // Escala matemática perfecta para que el bloque ocupe el ancho definido
+            const escala = anchoDisponible / anchoGrupoVisible;
+
             contenedor.style.transform = `scale(${escala})`;
 
-            // Actualizar dimensiones físicas del marco padre para habilitar scroll nativo perfecto
-            marco.style.width = `${anchoTotalTabla * escala}px`;
+            // Ajustar el contenedor físico para no distorsionar el scroll táctil
+            marco.style.width = `${anchoGrupoVisible * escala}px`;
             marco.style.height = `${tabla.offsetHeight * escala}px`;
 
-            // Mover suavemente la vista al inicio del bloque seleccionado
-            window.scrollTo({
-                left: scrollDestinoX * escala,
-                behavior: 'smooth'
-            });
+            window.scrollTo({ left: 0, behavior: 'smooth' });
 
             tabla.style.visibility = "visible";
             reajustarBarraFlotante();
@@ -380,6 +391,7 @@ Flotante 5
 
 </body>
 </html>
+
 
 
 
