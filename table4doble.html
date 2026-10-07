@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 6
+Flotante 4
 
 
 </BR></BR></BR>
@@ -19,6 +19,11 @@ Flotante 6
     <!-- Zoom nativo desactivado: el zoom de la tabla es simulado por el propio código -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
+
+    <!-- LIBRERÍAS EXTERNAS PARA GENERAR ARCHIVO .DOCX NATIVO DE WORD -->
+    <script src="https://unpkg.com/docx@8.2.2/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -175,7 +180,7 @@ Flotante 6
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
-        <button id="btn-exportar" class="btn-nav btn-word" onclick="exportarADocx()">Exportar Word</button>
+        <button id="btn-exportar" class="btn-nav btn-word" onclick="exportarADocx()">Exportar .DOCX</button>
     </div>
 
     <h2>Mis Datos en Tiempo Real</h2>
@@ -519,8 +524,8 @@ Flotante 6
             }
         });
 
-        // --- 5. LÓGICA DE EXPORTACIÓN A WORD (DOCX) DESDE COLUMNA 19 (FORMATO VERTICAL) ---
-        function exportarADocx() {
+        // --- 5. EXPORTACIÓN A ARCHIVO BINARIO .DOCX REAL Y NATIVO (DOCX.JS) ---
+        async function exportarADocx() {
             const tablaOriginal = document.getElementById('tabla-dinamica');
             
             if (!tablaOriginal || tablaOriginal.rows.length === 0 || totalColumnas < 19) {
@@ -528,68 +533,90 @@ Flotante 6
                 return;
             }
 
-            // Construir la nueva tabla HTML configurada para maximizar el ancho
-            let tablaHTML = '<table border="1" style="width: 100%; border-collapse: collapse; table-layout: fixed; font-family: sans-serif; font-size: 10pt;">';
+            const btnExportar = document.getElementById('btn-exportar');
+            btnExportar.innerText = "Generando...";
+            btnExportar.disabled = true;
 
-            // Recorrer todas las filas (Head y Body)
-            for (let i = 0; i < tablaOriginal.rows.length; i++) {
-                let fila = tablaOriginal.rows[i];
-                tablaHTML += '<tr>';
-                
-                // Iterar desde la Columna 19 (índice 18) hasta el final
-                for (let j = 18; j < fila.cells.length; j++) {
-                    let contenido = fila.cells[j].innerHTML;
-                    let esHeader = fila.cells[j].tagName.toLowerCase() === 'th';
-                    
-                    if (esHeader) {
-                        tablaHTML += `<th style="padding: 5px; background-color: #f1f5f9; word-wrap: break-word; border: 1px solid #ccc; text-align: left;">${contenido}</th>`;
-                    } else {
-                        tablaHTML += `<td style="padding: 5px; word-wrap: break-word; border: 1px solid #ccc; text-align: left;">${contenido}</td>`;
+            try {
+                const docxLib = window.docx;
+                const filasDocx = [];
+
+                // Recorrer filas de la tabla desde Columna 19 (índice 18)
+                for (let i = 0; i < tablaOriginal.rows.length; i++) {
+                    const filaObj = tablaOriginal.rows[i];
+                    const celdasDocx = [];
+
+                    for (let j = 18; j < filaObj.cells.length; j++) {
+                        const textoCelda = filaObj.cells[j].innerText.trim();
+                        const esHeader = filaObj.cells[j].tagName.toLowerCase() === 'th';
+
+                        celdasDocx.push(new docxLib.TableCell({
+                            children: [
+                                new docxLib.Paragraph({
+                                    children: [
+                                        new docxLib.TextRun({
+                                            text: textoCelda,
+                                            bold: esHeader,
+                                            size: 18, // 9pt
+                                            font: "Calibri"
+                                        })
+                                    ],
+                                    alignment: docxLib.AlignmentType.CENTER
+                                })
+                            ],
+                            shading: esHeader ? { fill: "F1F5F9" } : undefined,
+                            padding: { top: 100, bottom: 100, left: 100, right: 100 },
+                            verticalAlign: docxLib.VerticalAlign.CENTER
+                        }));
+                    }
+
+                    if (celdasDocx.length > 0) {
+                        filasDocx.push(new docxLib.TableRow({
+                            children: celdasDocx,
+                            tableHeader: i === 0
+                        }));
                     }
                 }
-                tablaHTML += '</tr>';
+
+                // Construcción del documento .docx nativo
+                const doc = new docxLib.Document({
+                    sections: [{
+                        properties: {
+                            page: {
+                                size: {
+                                    orientation: docxLib.PageOrientation.PORTRAIT // Orientación Vertical
+                                },
+                                margin: {
+                                    top: 567,    // ~1 cm en twips
+                                    bottom: 567,
+                                    left: 567,
+                                    right: 567
+                                }
+                            }
+                        },
+                        children: [
+                            new docxLib.Table({
+                                rows: filasDocx,
+                                width: {
+                                    size: 100,
+                                    type: docxLib.WidthType.PERCENTAGE // Maximiza la tabla al 100% del ancho
+                                }
+                            })
+                        ]
+                    }]
+                });
+
+                // Generar blob binario de Word y descargar
+                const blob = await docxLib.Packer.toBlob(doc);
+                saveAs(blob, "Exportacion_Columnas_19_Mas.docx");
+
+            } catch (err) {
+                console.error(err);
+                alert("Ocurrió un error al generar el archivo Word: " + err.message);
+            } finally {
+                btnExportar.innerText = "Exportar .DOCX";
+                btnExportar.disabled = false;
             }
-            tablaHTML += '</table>';
-
-            // Ensamblar con metadata de Office. Orientación vertical (portrait) y márgenes de 1cm
-            const cabecera = `
-                <html xmlns:o="urn:schemas-microsoft-com:office:office" 
-                      xmlns:w="urn:schemas-microsoft-com:office:word" 
-                      xmlns="http://www.w3.org/TR/REC-html40">
-                <head>
-                    <meta charset="utf-8">
-                    <title>Exportacion Tabla</title>
-                    <style>
-                        /* Configuración de Word: A4 Vertical (Portrait), Márgenes reducidos a 1cm */
-                        @page WordSection1 {
-                            size: 21cm 29.7cm;
-                            mso-page-orientation: portrait;
-                            margin: 1cm 1cm 1cm 1cm;
-                        }
-                        div.WordSection1 { page: WordSection1; }
-                    </style>
-                </head>
-                <body>
-                    <div class="WordSection1">
-                        ${tablaHTML}
-                    </div>
-                </body>
-                </html>`;
-
-            // Crear el archivo
-            const blob = new Blob(['\ufeff', cabecera], { type: 'application/msword' });
-            const url = URL.createObjectURL(blob);
-            
-            // Simular la descarga
-            const enlace = document.createElement('a');
-            enlace.href = url;
-            enlace.download = 'Exportacion_Columnas_19_Mas.doc';
-            document.body.appendChild(enlace);
-            enlace.click();
-            
-            // Limpiar
-            document.body.removeChild(enlace);
-            URL.revokeObjectURL(url);
         }
 
         // Ejecutar carga de datos inicial
