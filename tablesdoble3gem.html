@@ -1,4 +1,4 @@
-gem 3. corrección Word 6
+gem 3. corrección Word 7
 
 
 
@@ -6,170 +6,75 @@ gem 3. corrección Word 6
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- FORZAR AL NAVEGADOR A NO USAR CACHÉ DE LA PÁGINA -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <!-- Zoom nativo desactivado: el zoom de la tabla es simulado por el propio código -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+    
+    <!-- LIBRERÍA OFICIAL DOCX.JS PARA GENERAR ARCHIVOS .DOCX 100% NATIVOS -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 
+    <style>
+        * { box-sizing: border-box; }
         html, body {
             touch-action: pan-x pan-y;
-            margin: 0;
-            padding: 0;
-            background-color: #f8fafc;
-            color: #1e293b;
+            margin: 0; padding: 0;
+            background-color: #f8fafc; color: #1e293b;
             font-family: sans-serif;
         }
+        body { padding: 15px; padding-top: 65px; min-height: 100vh; }
 
-        body {
-            padding: 15px;
-            padding-top: 65px;
-            min-height: 100vh;
-        }
-
-        /* BARRA FLOTANTE FIJA */
         .controles-paginado-flotantes {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 9999999;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background-color: #ffffff;
-            padding: 6px 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-            border: 1px solid #cbd5e1;
-            transform-origin: top right;
-            will-change: transform;
+            position: fixed; top: 10px; right: 10px; z-index: 9999999;
+            display: flex; align-items: center; gap: 8px;
+            background-color: #ffffff; padding: 6px 10px;
+            border-radius: 8px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            border: 1px solid #cbd5e1; transform-origin: top right;
         }
 
         .btn-nav {
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            transition: background-color 0.2s ease;
+            background-color: #2563eb; color: white; border: none;
+            padding: 8px 14px; border-radius: 6px; font-size: 0.85rem;
+            font-weight: bold; cursor: pointer; white-space: nowrap;
         }
+        .btn-nav:hover:not(:disabled) { background-color: #1d4ed8; }
+        .btn-nav:disabled { background-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
 
-        .btn-nav:hover:not(:disabled) {
-            background-color: #1d4ed8;
-        }
-
-        .btn-nav:disabled {
-            background-color: #cbd5e1;
-            color: #94a3b8;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        /* ESTILO BOTÓN EXPORTAR DESDE COL 19 */
-        .btn-export-19 {
-            background-color: #059669;
-        }
-
-        .btn-export-19:hover:not(:disabled) {
-            background-color: #047857;
-        }
+        .btn-export-19 { background-color: #059669; }
+        .btn-export-19:hover:not(:disabled) { background-color: #047857; }
 
         .indicador-bloque {
-            font-weight: bold;
-            color: #475569;
-            font-size: 0.85rem;
-            min-width: 85px;
-            text-align: center;
-            white-space: nowrap;
+            font-weight: bold; color: #475569; font-size: 0.85rem;
+            min-width: 85px; text-align: center; white-space: nowrap;
         }
 
         h2 { color: #0f172a; margin: 0 0 15px 0; }
-
         #mensaje-estado {
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            font-weight: bold;
-            background-color: #e2e8f0;
+            padding: 15px; border-radius: 6px; margin-bottom: 20px;
+            font-weight: bold; background-color: #e2e8f0;
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
 
-        #visor-tabla {
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-x pan-y;
-        }
-
-        #contenedor-escalado {
-            display: block;
-            width: max-content;
-            transform-origin: top left;
-            touch-action: pan-x pan-y;
-        }
+        #visor-tabla { width: 100%; overflow-x: auto; overflow-y: hidden; }
+        #contenedor-escalado { display: block; width: max-content; transform-origin: top left; }
 
         table {
-            border-collapse: collapse;
-            width: max-content;
-            background: #ffffff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            visibility: hidden;
-            table-layout: fixed;
-            transform-origin: top left;
+            border-collapse: collapse; width: max-content; background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-radius: 8px;
+            visibility: hidden; table-layout: fixed;
         }
 
         th, td {
-            font-size: 0.9rem;
-            padding: 8px 0px;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-            white-space: nowrap;
-            overflow: visible;
-            position: relative;
+            font-size: 0.9rem; padding: 8px 0px; text-align: left;
+            border-bottom: 1px solid #e2e8f0; white-space: nowrap; position: relative;
         }
 
-        .celda {
-            position: relative;
-            height: 1.3em;
-            line-height: 1.3;
-        }
+        .celda { position: relative; height: 1.3em; line-height: 1.3; }
+        .celda > span { position: absolute; top: 0; left: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .celda > span {
-            position: absolute;
-            top: 0;
-            left: 3px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .col-28 {
-            width: 28px !important;
-            min-width: 28px !important;
-            max-width: 28px !important;
-            padding: 6px 0px;
-            font-size: 0.8rem;
-        }
-
-        .col-64 {
-            width: 64px !important;
-            min-width: 64px !important;
-            max-width: 64px !important;
-        }
+        .col-28 { width: 28px !important; min-width: 28px !important; max-width: 28px !important; }
+        .col-64 { width: 64px !important; min-width: 64px !important; max-width: 64px !important; }
 
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
         tr:hover { background-color: #f8fafc; }
@@ -181,7 +86,7 @@ gem 3. corrección Word 6
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
-        <button id="btn-doc19" class="btn-nav btn-export-19" onclick="exportarDesdeCol19Docx()">📄 Desde Col. 19 (.docx)</button>
+        <button id="btn-doc19" class="btn-nav btn-export-19" onclick="exportarDesdeCol19DocxNativo()">📄 Desde Col. 19 (.docx)</button>
     </div>
 
     <h2>Mis Datos en Tiempo Real</h2>
@@ -197,18 +102,6 @@ gem 3. corrección Word 6
     </div>
 
     <script>
-        (async function borrarCachePagina() {
-            try {
-                if ('caches' in window) {
-                    const keys = await caches.keys();
-                    await Promise.all(keys.map(key => caches.delete(key)));
-                }
-                sessionStorage.clear();
-            } catch (e) {
-                console.warn("No se pudo borrar parte de la caché local:", e);
-            }
-        })();
-
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
@@ -221,56 +114,40 @@ gem 3. corrección Word 6
         function reajustarBarraFlotante() {
             const barra = document.getElementById('barra-flotante');
             if (!barra || !window.visualViewport) return;
-
             const vv = window.visualViewport;
-            const anchoLayout = document.documentElement.clientWidth;
-
-            const desplX = vv.offsetLeft + vv.width - anchoLayout;
-            const desplY = vv.offsetTop;
-
-            barra.style.transform = `translate(${desplX}px, ${desplY}px) scale(${1 / vv.scale})`;
+            const desplX = vv.offsetLeft + vv.width - document.documentElement.clientWidth;
+            barra.style.transform = `translate(${desplX}px, ${vv.offsetTop}px) scale(${1 / vv.scale})`;
         }
 
         if (window.visualViewport) {
             window.visualViewport.addEventListener('scroll', reajustarBarraFlotante);
             window.visualViewport.addEventListener('resize', reajustarBarraFlotante);
         }
-        window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
         let zoomUsuario = 1;
         let escalaBase = 1;
-        const ZOOM_MAXIMO = 8;
 
         function cambiarBloque(direccion) {
             const nuevo = bloqueActual + direccion;
             if (nuevo < 0 || nuevo > 1) return;
             if (nuevo === 1 && totalColumnas <= LIMITE_PRIMER_BLOQUE) return;
             bloqueActual = nuevo;
-
             zoomUsuario = 1;
             aplicarZoomOptimo();
-            reajustarBarraFlotante();
         }
 
-        function escalaActual() {
-            return escalaBase * zoomUsuario;
-        }
+        function escalaActual() { return escalaBase * zoomUsuario; }
 
         function aplicarEscala(escala) {
             const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
-
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
-                contenedor.style.width = "";
-                contenedor.style.height = "";
-                tabla.style.transform = "";
             } else {
                 const anchoTotal = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE) * ANCHO_COL_1_17
                     + Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE) * ANCHO_COL_18_MAS;
                 tabla.style.transform = `scale(${escala})`;
                 contenedor.style.width = `${anchoTotal * escala}px`;
-                contenedor.style.height = `${tabla.offsetHeight * escala}px`;
             }
         }
 
@@ -282,110 +159,18 @@ gem 3. corrección Word 6
             const indicador = document.getElementById("indicador-bloque");
 
             if (!totalColumnas) return;
-
             const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
-            const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
-
-            const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
-            const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
+            const anchoObjetivo = bloqueActual === 0 ? colsBloque1 * ANCHO_COL_1_17 : (totalColumnas - colsBloque1) * ANCHO_COL_18_MAS;
             const anchoDisponible = document.documentElement.clientWidth - 30;
 
-            let anchoObjetivo;
-            let inicioBloque;
-
-            if (bloqueActual === 0) {
-                anchoObjetivo = anchoBloque1;
-                inicioBloque = 0;
-                btnPrev.disabled = true;
-                btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
-                indicador.innerText = `Cols 1 - ${colsBloque1}`;
-            } else {
-                anchoObjetivo = anchoBloque2;
-                inicioBloque = anchoBloque1;
-                btnPrev.disabled = false;
-                btnNext.disabled = true;
-                indicador.innerText = `Cols ${LIMITE_PRIMER_BLOQUE + 1} - ${totalColumnas}`;
-            }
-
             if (anchoObjetivo === 0) return;
-
             escalaBase = anchoDisponible / anchoObjetivo;
             aplicarEscala(escalaActual());
 
             tabla.style.visibility = "visible";
-            visor.scrollLeft = inicioBloque * escalaActual();
+            visor.scrollLeft = (bloqueActual === 0 ? 0 : colsBloque1 * ANCHO_COL_1_17) * escalaActual();
             reajustarBarraFlotante();
         }
-
-        let pellizco = null;
-        let cuadroPendiente = false;
-        let ultimoPunto = null;
-
-        function distanciaDedos(toques) {
-            return Math.hypot(toques[0].clientX - toques[1].clientX, toques[0].clientY - toques[1].clientY);
-        }
-
-        function puntoMedio(toques) {
-            return {
-                x: (toques[0].clientX + toques[1].clientX) / 2,
-                y: (toques[0].clientY + toques[1].clientY) / 2
-            };
-        }
-
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length !== 2 || !totalColumnas) {
-                if (e.touches.length > 2) pellizco = null;
-                return;
-            }
-
-            const visor = document.getElementById("visor-tabla");
-            const r = visor.getBoundingClientRect();
-            const p = puntoMedio(e.touches);
-            const escala0 = escalaActual();
-
-            pellizco = {
-                d0: distanciaDedos(e.touches),
-                zoom0: zoomUsuario,
-                izquierdaVisor: r.left,
-                contenidoX: (visor.scrollLeft + p.x - r.left) / escala0,
-                contenidoY: (p.y - r.top) / escala0,
-                topPagina: r.top + window.scrollY
-            };
-        }, { passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            if (!pellizco || e.touches.length !== 2) return;
-            if (e.cancelable) e.preventDefault();
-
-            const d = distanciaDedos(e.touches);
-            zoomUsuario = Math.min(ZOOM_MAXIMO, Math.max(1, pellizco.zoom0 * (d / pellizco.d0)));
-            ultimoPunto = puntoMedio(e.touches);
-
-            if (cuadroPendiente) return;
-            cuadroPendiente = true;
-
-            requestAnimationFrame(() => {
-                cuadroPendiente = false;
-                if (!pellizco || !ultimoPunto) return;
-
-                const visor = document.getElementById("visor-tabla");
-                const escala = escalaActual();
-
-                aplicarEscala(escala);
-                visor.scrollLeft = pellizco.contenidoX * escala - (ultimoPunto.x - pellizco.izquierdaVisor);
-                window.scrollTo(window.scrollX, pellizco.contenidoY * escala + pellizco.topPagina - ultimoPunto.y);
-            });
-        }, { passive: false });
-
-        document.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) pellizco = null;
-        }, { passive: true });
-
-        document.addEventListener('touchcancel', () => { pellizco = null; }, { passive: true });
-
-        ['gesturestart', 'gesturechange', 'gestureend'].forEach((nombre) => {
-            document.addEventListener(nombre, (e) => e.preventDefault(), { passive: false });
-        });
 
         function parsearCSV(texto) {
             const filas = [];
@@ -395,53 +180,29 @@ gem 3. corrección Word 6
 
             for (let i = 0; i < texto.length; i++) {
                 const c = texto[i];
-
                 if (enComillas) {
                     if (c === '"') {
                         if (texto[i + 1] === '"') { celda += '"'; i++; }
                         else { enComillas = false; }
-                    } else {
-                        celda += c;
-                    }
+                    } else { celda += c; }
                 } else if (c === '"') {
                     enComillas = true;
                 } else if (c === ',') {
-                    fila.push(celda.trim());
-                    celda = "";
+                    fila.push(celda.trim()); celda = "";
                 } else if (c === '\n' || c === '\r') {
                     if (c === '\r' && texto[i + 1] === '\n') i++;
-                    fila.push(celda.trim());
-                    celda = "";
-                    filas.push(fila);
-                    fila = [];
-                } else {
-                    celda += c;
-                }
+                    fila.push(celda.trim()); celda = "";
+                    filas.push(fila); fila = [];
+                } else { celda += c; }
             }
             fila.push(celda.trim());
             filas.push(fila);
 
-            let ultimaFilaConDatos = -1;
-            for (let i = filas.length - 1; i >= 0; i--) {
-                if (filas[i].some(v => v !== "")) {
-                    ultimaFilaConDatos = i;
-                    break;
-                }
-            }
-
-            if (ultimaFilaConDatos !== -1) {
-                return filas.slice(0, ultimaFilaConDatos + 1);
-            }
-            return [];
+            return filas.filter(f => f.some(v => v !== ""));
         }
 
         function escaparXML(t) {
-            return String(t)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&apos;");
+            return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
         function anchoColumna(idx) {
@@ -465,60 +226,36 @@ gem 3. corrección Word 6
 
         function celdaHTML(texto, ancho) {
             if (!texto) return '&nbsp;';
-            const maxAncho = Math.max(0, ancho - 6);
-            return `<div class="celda"><span style="max-width:${maxAncho}px">${escaparXML(texto)}</span></div>`;
+            return `<div class="celda"><span style="max-width:${Math.max(0, ancho - 6)}px">${escaparXML(texto)}</span></div>`;
         }
 
         async function cargarTabla() {
             const estado = document.getElementById("mensaje-estado");
             try {
-                estado.innerText = "Descargando información en tiempo real...";
-
                 const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Date.now()}`;
+                const respuesta = await fetch(urlDirecta, { cache: 'no-store' });
+                if (!respuesta.ok) throw new Error("No se pudo conectar con Google Sheets.");
 
-                const respuesta = await fetch(urlDirecta, {
-                    cache: 'no-store',
-                    headers: {
-                        'Pragma': 'no-cache',
-                        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
-                    }
-                });
-
-                if (!respuesta.ok) {
-                    throw new Error("Google no respondió correctamente. Revisa el enlace.");
-                }
-
-                const datosTexto = await respuesta.text();
-                estado.innerText = "Dibujando las filas de la tabla...";
-
-                const filas = parsearCSV(datosTexto);
-                if (filas.length === 0) throw new Error("La planilla no devolvió datos.");
-
-                const tablaHead = document.querySelector("#tabla-dinamica thead");
-                const tablaBody = document.querySelector("#tabla-dinamica tbody");
-
-                const claseColumna = (idx) =>
-                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
+                const filas = parsearCSV(await respuesta.text());
+                if (filas.length === 0) throw new Error("La planilla está vacía.");
 
                 totalColumnas = filas[0].length;
+                const tablaHead = document.querySelector("#tabla-dinamica thead");
+                const tablaBody = document.querySelector("#tabla-dinamica tbody");
 
                 const anchosEnc = anchosDisponibles(filas[0], totalColumnas);
                 let htmlHead = "<tr>";
                 for (let idx = 0; idx < totalColumnas; idx++) {
-                    const col = filas[0][idx] || "";
-                    htmlHead += `<th ${claseColumna(idx)}>${celdaHTML(col, anchosEnc[idx])}</th>`;
+                    htmlHead += `<th class="${idx < LIMITE_PRIMER_BLOQUE ? 'col-28' : 'col-64'}">${celdaHTML(filas[0][idx], anchosEnc[idx])}</th>`;
                 }
-                htmlHead += "</tr>";
-                tablaHead.innerHTML = htmlHead;
+                tablaHead.innerHTML = htmlHead + "</tr>";
 
                 let htmlBody = "";
                 for (let i = 1; i < filas.length; i++) {
-                    const fila = filas[i];
-                    const anchosFila = anchosDisponibles(fila, totalColumnas);
+                    const anchosFila = anchosDisponibles(filas[i], totalColumnas);
                     htmlBody += "<tr>";
                     for (let idx = 0; idx < totalColumnas; idx++) {
-                        const col = fila[idx] || "";
-                        htmlBody += `<td ${claseColumna(idx)}>${celdaHTML(col, anchosFila[idx])}</td>`;
+                        htmlBody += `<td class="${idx < LIMITE_PRIMER_BLOQUE ? 'col-28' : 'col-64'}">${celdaHTML(filas[i][idx], anchosFila[idx])}</td>`;
                     }
                     htmlBody += "</tr>";
                 }
@@ -526,88 +263,78 @@ gem 3. corrección Word 6
 
                 estado.style.display = "none";
                 aplicarZoomOptimo();
-
             } catch (error) {
-                console.error("Detalle:", error);
                 estado.classList.add("error");
                 estado.innerText = "Error: " + error.message;
             }
         }
 
-        // --- 5. EXPORTACIÓN COMPATIBLE A .DOCX (MIME MHTML ESTÁNDAR PARA OFFICE) ---
-        function exportarDesdeCol19Docx() {
+        // --- EXPORTACIÓN NATIVA A .DOCX USANDO LA LIBRERÍA DOCX.JS ---
+        async function exportarDesdeCol19DocxNativo() {
             const tabla = document.getElementById("tabla-dinamica");
             if (!tabla || !tabla.querySelector("tbody") || tabla.querySelector("tbody").rows.length === 0) {
-                alert("No hay datos cargados en la tabla para exportar.");
+                alert("No hay datos cargados para exportar.");
                 return;
             }
 
-            const INDICE_INICIO = 18; // Columna 19 (índice 18 en base 0)
+            const INDICE_INICIO = 18; // Columna 19 en adelante
             const theadCells = tabla.querySelectorAll("thead th");
-
             if (theadCells.length <= INDICE_INICIO) {
-                alert("La tabla actual no tiene suficientes columnas (al menos 19) para realizar esta exportación.");
+                alert("La tabla no posee suficientes columnas (mínimo 19).");
                 return;
             }
 
-            let filasHTML = "";
+            const { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType, TextRun } = window.docx;
 
-            // Encabezados
-            filasHTML += "<tr style='background-color: #f1f5f9;'>";
+            let filasDocx = [];
+
+            // 1. Fila de Encabezados
+            let celdasEncabezado = [];
             for (let i = INDICE_INICIO; i < theadCells.length; i++) {
-                filasHTML += `<th style="border: 1px solid #cbd5e1; padding: 6px; font-weight: bold; color: #475569; text-align: left;">${escaparXML(theadCells[i].innerText.trim())}</th>`;
+                celdasEncabezado.push(new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: theadCells[i].innerText.trim(), bold: true })] })],
+                    shading: { fill: "F1F5F9" }
+                }));
             }
-            filasHTML += "</tr>";
+            filasDocx.push(new TableRow({ children: celdasEncabezado, tableHeader: true }));
 
-            // Filas de datos
+            // 2. Filas de Datos
             const tbodyRows = tabla.querySelectorAll("tbody tr");
-            tbodyRows.forEach((tr, index) => {
+            tbodyRows.forEach(tr => {
                 const tdCells = tr.querySelectorAll("td");
                 if (tdCells.length > INDICE_INICIO) {
-                    const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-                    filasHTML += `<tr style='background-color: ${bgColor};'>`;
+                    let celdasFila = [];
                     for (let i = INDICE_INICIO; i < tdCells.length; i++) {
-                        filasHTML += `<td style="border: 1px solid #cbd5e1; padding: 6px; text-align: left;">${escaparXML(tdCells[i].innerText.trim())}</td>`;
+                        celdasFila.push(new TableCell({
+                            children: [new Paragraph({ children: [new TextRun({ text: tdCells[i].innerText.trim() })] })]
+                        }));
                     }
-                    filasHTML += "</tr>";
+                    filasDocx.push(new TableRow({ children: celdasFila }));
                 }
             });
 
-            // Contenedor MHTML compatible con Word de escritorio (.docx)
-            const contenidoMHTML = `MIME-Version: 1.0
-Content-Type: multipart/related; boundary="----=_NextPart_01"
-
-------=_NextPart_01
-Content-Type: text/html; charset="utf-8"
-Content-Location: file:///C:/document.htm
-
-<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<style>
-  body { font-family: sans-serif; color: #1e293b; }
-  h2 { color: #0f172a; }
-  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
-</style>
-</head>
-<body>
-    <h2>Mis Datos (Desde Columna 19)</h2>
-    <table>
-        ${filasHTML}
-    </table>
-</body>
-</html>
-------=_NextPart_01--`;
-
-            const blob = new Blob([contenidoMHTML], {
-                type: 'application/msword'
+            // 3. Crear el documento Word nativo
+            const doc = new Document({
+                sections: [{
+                    children: [
+                        new Paragraph({
+                            children: [new TextRun({ text: "Mis Datos (Desde la Columna 19)", bold: true, size: 28 })],
+                            spacing: { after: 200 }
+                        }),
+                        new Table({
+                            rows: filasDocx,
+                            width: { size: 100, type: WidthType.PERCENTAGE }
+                        })
+                    ]
+                }]
             });
 
+            // 4. Generar el archivo binario comprimido (.docx) y descargarlo automáticamente
+            const blob = await Packer.toBlob(doc);
             const fechaActual = new Date().toISOString().slice(0, 10);
             const enlace = document.createElement('a');
             enlace.href = URL.createObjectURL(blob);
-            enlace.download = `Datos_Col19_${fechaActual}.docx`;
+            enlace.download = `Datos_Col19_Nativo_${fechaActual}.docx`;
             
             document.body.appendChild(enlace);
             enlace.click();
@@ -615,17 +342,8 @@ Content-Location: file:///C:/document.htm
             URL.revokeObjectURL(enlace.href);
         }
 
-        let ultimoAncho = document.documentElement.clientWidth;
-        window.addEventListener("resize", () => {
-            const ancho = document.documentElement.clientWidth;
-            if (ancho !== ultimoAncho) {
-                ultimoAncho = ancho;
-                aplicarZoomOptimo();
-            }
-        });
-
+        window.addEventListener("resize", () => aplicarZoomOptimo());
         cargarTabla();
     </script>
-
 </body>
 </html>
