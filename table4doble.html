@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 4
+Flotante 5
 
 
 </BR></BR></BR>
@@ -20,8 +20,8 @@ Flotante 4
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
 
-    <!-- LIBRERÍAS EXTERNAS PARA GENERAR ARCHIVO .DOCX NATIVO DE WORD -->
-    <script src="https://unpkg.com/docx@8.2.2/build/index.js"></script>
+    <!-- LIBRERÍAS EXTERNAS CORREGIDAS PARA GENERAR ARCHIVO .DOCX NATIVO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/7.8.2/docx.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <style>
@@ -524,8 +524,16 @@ Flotante 4
             }
         });
 
-        // --- 5. EXPORTACIÓN A ARCHIVO BINARIO .DOCX REAL Y NATIVO (DOCX.JS) ---
+        // --- 5. EXPORTACIÓN A ARCHIVO BINARIO .DOCX REAL Y NATIVO ---
         async function exportarADocx() {
+            // Detección segura de la librería cargada en window
+            const docxLib = window.docx || (window.docx ? window.docx.default : null);
+
+            if (!docxLib || !docxLib.TableCell) {
+                alert("La librería para generar archivos Word aún se está cargando. Comprueba tu conexión e inténtalo de nuevo.");
+                return;
+            }
+
             const tablaOriginal = document.getElementById('tabla-dinamica');
             
             if (!tablaOriginal || tablaOriginal.rows.length === 0 || totalColumnas < 19) {
@@ -538,7 +546,6 @@ Flotante 4
             btnExportar.disabled = true;
 
             try {
-                const docxLib = window.docx;
                 const filasDocx = [];
 
                 // Recorrer filas de la tabla desde Columna 19 (índice 18)
@@ -565,7 +572,7 @@ Flotante 4
                                 })
                             ],
                             shading: esHeader ? { fill: "F1F5F9" } : undefined,
-                            padding: { top: 100, bottom: 100, left: 100, right: 100 },
+                            margins: { top: 100, bottom: 100, left: 100, right: 100 },
                             verticalAlign: docxLib.VerticalAlign.CENTER
                         }));
                     }
@@ -578,7 +585,7 @@ Flotante 4
                     }
                 }
 
-                // Construcción del documento .docx nativo
+                // Construcción del documento .docx nativo en Formato Vertical
                 const doc = new docxLib.Document({
                     sections: [{
                         properties: {
@@ -606,9 +613,20 @@ Flotante 4
                     }]
                 });
 
-                // Generar blob binario de Word y descargar
+                // Generar blob binario de Word y descargar con FileSaver
                 const blob = await docxLib.Packer.toBlob(doc);
-                saveAs(blob, "Exportacion_Columnas_19_Mas.docx");
+                if (window.saveAs) {
+                    window.saveAs(blob, "Exportacion_Columnas_19_Mas.docx");
+                } else {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = "Exportacion_Columnas_19_Mas.docx";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
 
             } catch (err) {
                 console.error(err);
