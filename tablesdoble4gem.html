@@ -1,4 +1,4 @@
-Word mejorado 2
+Word mejorado 3
 
 
 <!DOCTYPE html>
@@ -350,6 +350,9 @@ Word mejorado 2
                     }
                 });
 
+                // Objeto de borde sin líneas con color hexadecimal de 6 dígitos válido
+                const sinBorde = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+
                 // 3. Crear el documento Word nativo
                 const doc = new Document({
                     sections: [{
@@ -372,12 +375,12 @@ Word mejorado 2
                                 rows: filasDocx,
                                 width: { size: 100, type: WidthType.PERCENTAGE },
                                 borders: {
-                                    top: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                    bottom: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                    left: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                    right: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                    insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "AUTO" },
-                                    insideVertical: { style: BorderStyle.NONE, size: 0, color: "AUTO" }
+                                    top: sinBorde,
+                                    bottom: sinBorde,
+                                    left: sinBorde,
+                                    right: sinBorde,
+                                    insideHorizontal: sinBorde,
+                                    insideVertical: sinBorde
                                 }
                             })
                         ]
