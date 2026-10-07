@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 6
+Flotante 4
 
 
 </BR></BR></BR>
@@ -17,7 +17,7 @@ Flotante 6
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
-    <!-- VIEWPORT QUE PERMITE ZOOM TÁCTIL Y AUTOESCALADO -->
+    <!-- VIEWPORT TOTALMENTE PERMISIVO PARA ZOOM TÁCTIL NATIVO -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <title>Tabla Dinámica Paginada - Google Sheets</title>
@@ -34,7 +34,10 @@ Flotante 6
             background-color: #f8fafc;
             color: #1e293b;
             font-family: sans-serif;
-            overflow-x: hidden;
+            /* Permite el desplazamiento táctil libre en todas las direcciones */
+            overflow-x: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         body {
@@ -42,7 +45,7 @@ Flotante 6
             padding-top: 65px;
         }
 
-        /* BARRA FLOTANTE FIJA E INAMOVIBLE */
+        /* BARRA FLOTANTE FIJA E INMUNE AL ZOOM TÁCTIL */
         .controles-paginado-flotantes {
             position: fixed;
             top: 10px;
@@ -106,9 +109,14 @@ Flotante 6
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
 
-        /* MARCO CONTENEDOR CON TRANSFORM-ORIGIN PARA EL ESCALADO */
-        #contenedor-escalado {
+        /* CONTENEDOR CON ENVOLTORIO DE ANCHO DINÁMICO */
+        #marco-tabla {
+            width: max-content;
             display: block;
+        }
+
+        #contenedor-escalado {
+            display: inline-block;
             transform-origin: top left;
             transition: transform 0.25s ease-out;
         }
@@ -121,7 +129,6 @@ Flotante 6
             border-radius: 8px; 
             visibility: hidden; 
             table-layout: fixed; 
-            transition: transform 0.25s ease-out;
         }
         
         th, td { 
@@ -164,15 +171,17 @@ Flotante 6
     <h2>Mis Datos en Tiempo Real</h2>
     <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
     
-    <div id="contenedor-escalado">
-        <table id="tabla-dinamica">
-            <thead></thead>
-            <tbody></tbody>
-        </table>
+    <div id="marco-tabla">
+        <div id="contenedor-escalado">
+            <table id="tabla-dinamica">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        // --- 1. LIMPIEZA DE CACHÉ ---
+        // --- 1. LIMPIEZA DE CACHÉ EN CADA CARGA ---
         (async function borrarCachePagina() {
             try {
                 if ('caches' in window) {
@@ -193,7 +202,7 @@ Flotante 6
         const ANCHO_COL_1_17 = 28;
         const ANCHO_COL_18_MAS = 64;
 
-        // --- 2. MANEJO DE LA BARRA FLOTANTE CON ZOOM TÁCTIL ---
+        // --- 2. MANTENER LA BARRA EN PANTALLA ANTE ZOOM TÁCTIL ---
         function reajustarBarraFlotante() {
             const barra = document.getElementById('barra-flotante');
             if (!barra) return;
@@ -213,7 +222,7 @@ Flotante 6
         }
         window.addEventListener('scroll', reajustarBarraFlotante);
 
-        // --- 3. CAMBIO DE BLOQUE Y ESCALADO AUTOMÁTICO AL ANCHO DE PANTALLA ---
+        // --- 3. CAMBIO DE BLOQUE CON ESCALADO + SCROLL NATIVO HORIZONTAL ---
         function cambiarBloque(direccion) {
             bloqueActual += direccion;
             aplicarZoomOptimo();
@@ -237,25 +246,24 @@ Flotante 6
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
 
-            // Ancho visible real disponible en pantalla
             const anchoVisibleReal = window.visualViewport ? window.visualViewport.width : window.innerWidth;
             const anchoDisponible = anchoVisibleReal - 30;
 
             let anchoObjetivo = 0;
-            let desplazamientoX = 0;
+            let scrollDestinoX = 0;
 
             if (bloqueActual === 0) {
-                // PRIMER BLOQUE (Cols 1 a 17)
+                // BLOQUE 1 (Cols 1 a 17)
                 anchoObjetivo = anchoBloque1;
-                desplazamientoX = 0;
+                scrollDestinoX = 0;
 
                 btnPrev.disabled = true;
                 btnNext.disabled = totalColumnas <= LIMITE_PRIMER_BLOQUE;
                 indicador.innerText = `Cols 1 - ${colsBloque1}`;
             } else {
-                // SEGUNDO BLOQUE (Cols 18 en adelante)
+                // BLOQUE 2 (Cols 18 en adelante)
                 anchoObjetivo = anchoBloque2;
-                desplazamientoX = -anchoBloque1;
+                scrollDestinoX = anchoBloque1;
 
                 btnPrev.disabled = false;
                 btnNext.disabled = true;
@@ -264,12 +272,17 @@ Flotante 6
 
             if (anchoObjetivo === 0) return;
 
-            // Calcular el factor de escala óptimo según la definición del bloque
+            // Factor de escala calculado
             const escala = anchoDisponible / anchoObjetivo;
 
-            // Aplicar escala al contenedor y desplazamiento de columnas a la tabla
+            // Escalado
             contenedor.style.transform = `scale(${escala})`;
-            tabla.style.transform = `translateX(${desplazamientoX}px)`;
+
+            // Scroll horizontal nativo para desplazar a la vista del bloque sin bloquear el gesto táctil
+            window.scrollTo({
+                left: scrollDestinoX * escala,
+                behavior: 'smooth'
+            });
 
             tabla.style.visibility = "visible";
             reajustarBarraFlotante();
@@ -360,6 +373,7 @@ Flotante 6
 
 </body>
 </html>
+
 
 
 
