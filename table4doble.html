@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 3
+Flotante 4
 
 
 </BR></BR></BR>
@@ -12,8 +12,8 @@ Flotante 3
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- Bloquea el zoom del navegador para garantizar que la barra flotante NUNCA salga de plano -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- HABILITAMOS NUEVAMENTE EL ZOOM TÁCTIL (user-scalable=yes) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <style>
         * {
@@ -23,20 +23,25 @@ Flotante 3
         html, body {
             margin: 0;
             padding: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
+            width: 100%;
+            height: 100%;
             background-color: #f8fafc;
             color: #1e293b;
             font-family: sans-serif;
+            overflow-x: hidden;
         }
 
-        /* BARRA FLOTANTE ABSOLUTAMENTE INAMOVIBLE Y SIEMPRE VISIBLE */
+        body {
+            padding: 15px;
+            padding-top: 65px;
+        }
+
+        /* BARRA FLOTANTE FIJA */
         .controles-paginado-flotantes {
-            position: fixed !important;
-            top: 10px !important;
-            right: 10px !important;
-            z-index: 9999999 !important;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9999999;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -45,7 +50,8 @@ Flotante 3
             border-radius: 8px;
             box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
             border: 1px solid #cbd5e1;
-            transform: none !important;
+            transform-origin: top right; /* Anclada en la esquina superior derecha */
+            will-change: transform;
         }
 
         .btn-nav {
@@ -81,16 +87,6 @@ Flotante 3
             min-width: 85px;
             text-align: center;
             white-space: nowrap;
-        }
-
-        /* MARCO DE DESPLAZAMIENTO VERTICAL Y HORIZONTAL */
-        #marco-scroll {
-            width: 100vw;
-            height: 100vh;
-            overflow: auto;
-            padding: 15px;
-            padding-top: 65px;
-            -webkit-overflow-scrolling: touch;
         }
 
         h2 { color: #0f172a; margin: 0 0 15px 0; }
@@ -131,7 +127,6 @@ Flotante 3
             position: relative;   
         }
 
-        /* ANCHOS MATEMÁTICAMENTE ESTRICTOS POR COLUMNA */
         .col-28 {
             width: 28px !important;
             min-width: 28px !important;
@@ -152,36 +147,54 @@ Flotante 3
 </head>
 <body>
 
-    <!-- BARRA FLOTANTE INDEPENDIENTE DE CUALQUIER ZOOM -->
-    <div class="controles-paginado-flotantes">
+    <!-- BARRA FLOTANTE CONTROLADA POR VISUAL VIEWPORT -->
+    <div id="barra-flotante" class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
     </div>
 
-    <!-- CONTENEDOR CON SCROLL INDEPENDIENTE -->
-    <div id="marco-scroll">
-        <h2>Mis Datos en Tiempo Real</h2>
-        <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
-        
-        <div id="contenedor-escalado">
-            <table id="tabla-dinamica">
-                <thead></thead>
-                <tbody></tbody>
-            </table>
-        </div>
+    <h2>Mis Datos en Tiempo Real</h2>
+    <div id="mensaje-estado">Buscando datos en la planilla de Google...</div>
+    
+    <div id="contenedor-escalado">
+        <table id="tabla-dinamica">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
     </div>
 
     <script>
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        // Iniciar en bloque 1 (Cols 18 en adelante)
         let bloqueActual = 1; 
-        const LIMITE_PRIMER_BLOQUE = 17; // Columnas 1 a 17 (28px)
+        const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
         const ANCHO_COL_18_MAS = 64;
 
+        // --- SISTEMA DE SEGUIMIENTO DE ZOOM Y SCROLL TÁCTIL ---
+        function reajustarBarraFlotante() {
+            const barra = document.getElementById('barra-flotante');
+            if (!barra) return;
+
+            if (window.visualViewport) {
+                const scale = window.visualViewport.scale;
+                const offsetLeft = window.visualViewport.offsetLeft;
+                const offsetTop = window.visualViewport.offsetTop;
+
+                // Compensar el zoom y el desplazamiento táctil para mantener la barra fija en el visor actual
+                barra.style.transform = `translate(${offsetLeft}px, ${offsetTop}px) scale(${1 / scale})`;
+            }
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('scroll', reajustarBarraFlotante);
+            window.visualViewport.addEventListener('resize', reajustarBarraFlotante);
+        }
+        window.addEventListener('scroll', reajustarBarraFlotante);
+
+        // --- NAVEGACIÓN Y ESCALADO DE TABLA ---
         function cambiarBloque(direccion) {
             bloqueActual += direccion;
             aplicarZoomOptimo();
@@ -190,7 +203,6 @@ Flotante 3
         function aplicarZoomOptimo() {
             const contenedor = document.getElementById("contenedor-escalado");
             const tabla = document.getElementById("tabla-dinamica");
-            const marco = document.getElementById("marco-scroll");
             const btnPrev = document.getElementById("btn-prev");
             const btnNext = document.getElementById("btn-next");
             const indicador = document.getElementById("indicador-bloque");
@@ -198,20 +210,17 @@ Flotante 3
             const primeraFila = tabla.querySelector("tr");
             if (!primeraFila) return;
 
-            // Restablecer el scroll interno al inicio para evitar descalibres
-            marco.scrollLeft = 0;
-            marco.scrollTop = 0;
-
             const totalColumnas = primeraFila.children.length;
 
-            // Cálculo matemático puro e inmune a distorsiones de la pantalla
             const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
             const colsBloque2 = Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE);
 
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
 
-            const anchoDisponible = window.innerWidth - 30;
+            // Tomar el ancho visible real según el zoom táctil o tamaño de ventana activa
+            const anchoVisibleReal = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+            const anchoDisponible = anchoVisibleReal - 30;
 
             let anchoObjetivo = 0;
             let desplazamientoX = 0;
@@ -236,10 +245,8 @@ Flotante 3
 
             if (anchoObjetivo === 0) return;
 
-            // Calcular escala exacta según el ancho disponible
             const escala = anchoDisponible / anchoObjetivo;
 
-            // Aplicar la escala y la traslación directamente
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
                 tabla.style.transform = `translateX(${desplazamientoX}px)`;
@@ -250,6 +257,9 @@ Flotante 3
             }
 
             tabla.style.visibility = "visible";
+
+            // Reajustar inmediatamente la barra flotante tras el cambio de bloque
+            reajustarBarraFlotante();
         }
 
         async function cargarTabla() {
