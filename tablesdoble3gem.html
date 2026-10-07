@@ -1,20 +1,24 @@
-gem 3. corrección Word
+gem 3. corrección Word 2
 
 
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <!-- FORZAR AL NAVEGADOR A NO USAR CACHÉ DE LA PÁGINA -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <!-- Zoom nativo desactivado: el zoom de la tabla es simulado por el propio código -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <style>
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         html, body {
-            touch-action: pan-x pan-y;
+            touch-action: pan-x pan-y; /* permite desplazarse, bloquea el zoom nativo por pellizco/doble toque */
             margin: 0;
             padding: 0;
             background-color: #f8fafc;
@@ -28,6 +32,7 @@ gem 3. corrección Word
             min-height: 100vh;
         }
 
+        /* BARRA FLOTANTE FIJA */
         .controles-paginado-flotantes {
             position: fixed;
             top: 10px;
@@ -60,11 +65,25 @@ gem 3. corrección Word
             transition: background-color 0.2s ease;
         }
 
-        .btn-nav:hover:not(:disabled) { background-color: #1d4ed8; }
-        .btn-nav:disabled { background-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; opacity: 0.7; }
-        
-        .btn-export { background-color: #059669; }
-        .btn-export:hover:not(:disabled) { background-color: #047857; }
+        .btn-nav:hover:not(:disabled) {
+            background-color: #1d4ed8;
+        }
+
+        .btn-nav:disabled {
+            background-color: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* ESTILO BOTÓN EXPORTAR DESDE COL 19 */
+        .btn-export-19 {
+            background-color: #059669;
+        }
+
+        .btn-export-19:hover:not(:disabled) {
+            background-color: #047857;
+        }
 
         .indicador-bloque {
             font-weight: bold;
@@ -86,6 +105,7 @@ gem 3. corrección Word
         }
         .error { background-color: #fee2e2 !important; color: #991b1b; }
 
+        /* Visor con desplazamiento táctil horizontal sobre la tabla completa */
         #visor-tabla {
             width: 100%;
             overflow-x: auto;
@@ -94,6 +114,7 @@ gem 3. corrección Word
             touch-action: pan-x pan-y;
         }
 
+        /* Contenedor SIN restricciones de gestos: permite pellizco, scroll y paneo natural */
         #contenedor-escalado {
             display: block;
             width: max-content;
@@ -118,16 +139,19 @@ gem 3. corrección Word
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
             white-space: nowrap;
-            overflow: visible;
+            overflow: visible; /* el texto puede traspasar el ancho de la celda */
             position: relative;
         }
 
+        /* Contenedor de altura fija: el alto de la fila no depende del texto */
         .celda {
             position: relative;
             height: 1.3em;
             line-height: 1.3;
         }
 
+        /* El texto sale del flujo de la celda, alineado a la izquierda.
+           Su ancho máximo (inline) = celda + celdas vecinas vacías a la derecha */
         .celda > span {
             position: absolute;
             top: 0;
@@ -137,8 +161,19 @@ gem 3. corrección Word
             text-overflow: ellipsis;
         }
 
-        .col-28 { width: 28px !important; min-width: 28px !important; max-width: 28px !important; padding: 6px 0px; font-size: 0.8rem; }
-        .col-64 { width: 64px !important; min-width: 64px !important; max-width: 64px !important; }
+        .col-28 {
+            width: 28px !important;
+            min-width: 28px !important;
+            max-width: 28px !important;
+            padding: 6px 0px;
+            font-size: 0.8rem;
+        }
+
+        .col-64 {
+            width: 64px !important;
+            min-width: 64px !important;
+            max-width: 64px !important;
+        }
 
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
         tr:hover { background-color: #f8fafc; }
@@ -146,11 +181,12 @@ gem 3. corrección Word
 </head>
 <body>
 
+    <!-- BARRA FLOTANTE CONTROLADA POR VISUAL VIEWPORT -->
     <div id="barra-flotante" class="controles-paginado-flotantes">
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
-        <button id="btn-docx" class="btn-nav btn-export" onclick="exportarDocx()">📄 Word</button>
+        <button id="btn-doc19" class="btn-nav btn-export-19" onclick="exportarDesdeCol19Docx()">📄 Desde Col. 19 (.docx)</button>
     </div>
 
     <h2>Mis Datos en Tiempo Real</h2>
@@ -166,6 +202,7 @@ gem 3. corrección Word
     </div>
 
     <script>
+        // --- 1. LIMPIEZA AUTOMÁTICA DE CACHÉ AL INICIAR LA PÁGINA ---
         (async function borrarCachePagina() {
             try {
                 if ('caches' in window) {
@@ -181,18 +218,20 @@ gem 3. corrección Word
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
         const GID = '1726751477';
 
-        let bloqueActual = 0; 
+        let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
         let totalColumnas = 0;
         const LIMITE_PRIMER_BLOQUE = 17;
         const ANCHO_COL_1_17 = 28;
         const ANCHO_COL_18_MAS = 64;
 
+        // --- 2. BARRA FLOTANTE: SIGUE AL VISUAL VIEWPORT (ZOOM Y PANEO TÁCTIL) ---
         function reajustarBarraFlotante() {
             const barra = document.getElementById('barra-flotante');
             if (!barra || !window.visualViewport) return;
 
             const vv = window.visualViewport;
             const anchoLayout = document.documentElement.clientWidth;
+
             const desplX = vv.offsetLeft + vv.width - anchoLayout;
             const desplY = vv.offsetTop;
 
@@ -205,6 +244,7 @@ gem 3. corrección Word
         }
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
+        // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
         let zoomUsuario = 1;
         let escalaBase = 1;
         const ZOOM_MAXIMO = 8;
@@ -217,6 +257,7 @@ gem 3. corrección Word
 
             zoomUsuario = 1;
             aplicarZoomOptimo();
+
             reajustarBarraFlotante();
         }
 
@@ -256,6 +297,7 @@ gem 3. corrección Word
 
             const anchoBloque1 = colsBloque1 * ANCHO_COL_1_17;
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
+
             const anchoDisponible = document.documentElement.clientWidth - 30;
 
             let anchoObjetivo;
@@ -282,9 +324,11 @@ gem 3. corrección Word
 
             tabla.style.visibility = "visible";
             visor.scrollLeft = inicioBloque * escalaActual();
+
             reajustarBarraFlotante();
         }
 
+        // --- 3b. ZOOM POR PELLIZCO SIMULADO ---
         let pellizco = null;
         let cuadroPendiente = false;
         let ultimoPunto = null;
@@ -323,6 +367,7 @@ gem 3. corrección Word
 
         document.addEventListener('touchmove', (e) => {
             if (!pellizco || e.touches.length !== 2) return;
+
             if (e.cancelable) e.preventDefault();
 
             const d = distanciaDedos(e.touches);
@@ -338,6 +383,7 @@ gem 3. corrección Word
 
                 const visor = document.getElementById("visor-tabla");
                 const escala = escalaActual();
+
                 aplicarEscala(escala);
 
                 visor.scrollLeft = pellizco.contenidoX * escala - (ultimoPunto.x - pellizco.izquierdaVisor);
@@ -345,13 +391,17 @@ gem 3. corrección Word
             });
         }, { passive: false });
 
-        document.addEventListener('touchend', (e) => { if (e.touches.length < 2) pellizco = null; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) pellizco = null;
+        }, { passive: true });
+
         document.addEventListener('touchcancel', () => { pellizco = null; }, { passive: true });
 
         ['gesturestart', 'gesturechange', 'gestureend'].forEach((nombre) => {
             document.addEventListener(nombre, (e) => e.preventDefault(), { passive: false });
         });
 
+        // --- 4. LECTOR CSV CON SOPORTE DE FILAS VACÍAS Y RECORTE FINAL ---
         function parsearCSV(texto) {
             const filas = [];
             let fila = [];
@@ -360,6 +410,7 @@ gem 3. corrección Word
 
             for (let i = 0; i < texto.length; i++) {
                 const c = texto[i];
+
                 if (enComillas) {
                     if (c === '"') {
                         if (texto[i + 1] === '"') { celda += '"'; i++; }
@@ -376,7 +427,7 @@ gem 3. corrección Word
                     if (c === '\r' && texto[i + 1] === '\n') i++;
                     fila.push(celda.trim());
                     celda = "";
-                    filas.push(fila); 
+                    filas.push(fila); // Conserva las filas intermedias vacías
                     fila = [];
                 } else {
                     celda += c;
@@ -385,6 +436,7 @@ gem 3. corrección Word
             fila.push(celda.trim());
             filas.push(fila);
 
+            // Buscar la última fila que contenga al menos una celda con datos
             let ultimaFilaConDatos = -1;
             for (let i = filas.length - 1; i >= 0; i--) {
                 if (filas[i].some(v => v !== "")) {
@@ -393,9 +445,11 @@ gem 3. corrección Word
                 }
             }
 
+            // Recortar las filas vacías que estén después de la última fila con datos
             if (ultimaFilaConDatos !== -1) {
                 return filas.slice(0, ultimaFilaConDatos + 1);
             }
+
             return [];
         }
 
@@ -403,6 +457,7 @@ gem 3. corrección Word
             return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
+        // --- 4b. DESBORDAMIENTO DEL TEXTO SOBRE CELDAS VECINAS VACÍAS ---
         function anchoColumna(idx) {
             return idx < LIMITE_PRIMER_BLOQUE ? ANCHO_COL_1_17 : ANCHO_COL_18_MAS;
         }
@@ -432,25 +487,36 @@ gem 3. corrección Word
             const estado = document.getElementById("mensaje-estado");
             try {
                 estado.innerText = "Descargando información en tiempo real...";
+
                 const urlDirecta = `https://docs.google.com/spreadsheets/d/e/${ID_HOJA}/pub?gid=${GID}&single=true&output=csv&nocache=${Date.now()}`;
-                
+
                 const respuesta = await fetch(urlDirecta, {
                     cache: 'no-store',
-                    headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate' }
+                    headers: {
+                        'Pragma': 'no-cache',
+                        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
+                    }
                 });
 
-                if (!respuesta.ok) throw new Error("Google no respondió correctamente. Revisa el enlace.");
+                if (!respuesta.ok) {
+                    throw new Error("Google no respondió correctamente. Revisa el enlace.");
+                }
 
                 const datosTexto = await respuesta.text();
                 estado.innerText = "Dibujando las filas de la tabla...";
+
                 const filas = parsearCSV(datosTexto);
                 if (filas.length === 0) throw new Error("La planilla no devolvió datos.");
 
                 const tablaHead = document.querySelector("#tabla-dinamica thead");
                 const tablaBody = document.querySelector("#tabla-dinamica tbody");
-                const claseColumna = (idx) => idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
+
+                const claseColumna = (idx) =>
+                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
+
                 totalColumnas = filas[0].length;
 
+                // Encabezado
                 const anchosEnc = anchosDisponibles(filas[0], totalColumnas);
                 let htmlHead = "<tr>";
                 for (let idx = 0; idx < totalColumnas; idx++) {
@@ -460,6 +526,7 @@ gem 3. corrección Word
                 htmlHead += "</tr>";
                 tablaHead.innerHTML = htmlHead;
 
+                // Cuerpo
                 let htmlBody = "";
                 for (let i = 1; i < filas.length; i++) {
                     const fila = filas[i];
@@ -472,6 +539,7 @@ gem 3. corrección Word
                     htmlBody += "</tr>";
                 }
                 tablaBody.innerHTML = htmlBody;
+
                 estado.style.display = "none";
                 aplicarZoomOptimo();
 
@@ -482,64 +550,93 @@ gem 3. corrección Word
             }
         }
 
-        // --- 5. EXPORTACIÓN DE TABLA COMPLETA A WORD (CORRECCIÓN APLICADA) ---
-        function exportarDocx() {
+        // --- 5. NUEVA FUNCIÓN: EXPORTAR A WORD DESDE LA COLUMNA 19 ---
+        function exportarDesdeCol19Docx() {
             const tabla = document.getElementById("tabla-dinamica");
             if (!tabla || !tabla.querySelector("tbody") || tabla.querySelector("tbody").rows.length === 0) {
                 alert("No hay datos cargados en la tabla para exportar.");
                 return;
             }
 
-            // 1. Reconstruir una tabla HTML pura y limpiar todos los <div> y <span> que provocan errores de formato en Word.
-            let tablaLimpia = "<table><thead><tr>";
+            const INDICE_INICIO = 18; // Columna 19 (índice 18 en base 0)
             const theadCells = tabla.querySelectorAll("thead th");
-            theadCells.forEach(th => { tablaLimpia += `<th>${escaparHTML(th.innerText.trim())}</th>`; });
+
+            if (theadCells.length <= INDICE_INICIO) {
+                alert("La tabla actual no tiene suficientes columnas (al menos 19) para realizar esta exportación.");
+                return;
+            }
+
+            // Construir la tabla limpia solo desde la columna 19 en adelante
+            let tablaLimpia = "<table><thead><tr>";
+            for (let i = INDICE_INICIO; i < theadCells.length; i++) {
+                tablaLimpia += `<th>${escaparHTML(theadCells[i].innerText.trim())}</th>`;
+            }
             tablaLimpia += "</tr></thead><tbody>";
 
             const tbodyRows = tabla.querySelectorAll("tbody tr");
             tbodyRows.forEach(tr => {
-                tablaLimpia += "<tr>";
                 const tdCells = tr.querySelectorAll("td");
-                tdCells.forEach(td => { tablaLimpia += `<td>${escaparHTML(td.innerText.trim())}</td>`; });
-                tablaLimpia += "</tr>";
+                if (tdCells.length > INDICE_INICIO) {
+                    tablaLimpia += "<tr>";
+                    for (let i = INDICE_INICIO; i < tdCells.length; i++) {
+                        tablaLimpia += `<td>${escaparHTML(tdCells[i].innerText.trim())}</td>`;
+                    }
+                    tablaLimpia += "</tr>";
+                }
             });
             tablaLimpia += "</tbody></table>";
 
-            // 2. Construir la plantilla para Word
+            // Plantilla HTML optimizada para Word en formato Horizontal (Landscape) y ajuste total
             const htmlDocx = `
                 <html xmlns:o='urn:schemas-microsoft-microsoft-com:office:office'
                       xmlns:w='urn:schemas-microsoft-microsoft-com:office:word'
                       xmlns='http://www.w3.org/TR/REC-html40'>
                 <head>
                     <meta charset='utf-8'>
-                    <title>Exportación de Datos</title>
+                    <title>Datos desde Columna 19</title>
                     <style>
-                        @page Section1 { size: A4 landscape; margin: 1cm; }
+                        @page Section1 { 
+                            size: 29.7cm 21cm; /* A4 Horizontal (Landscape) */
+                            margin: 1cm; 
+                        }
                         div.Section1 { page: Section1; }
-                        table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 9pt; }
-                        th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; vertical-align: top; }
-                        th { background-color: #f1f5f9; color: #475569; font-weight: bold; }
+                        table { 
+                            border-collapse: collapse; 
+                            width: 100%; 
+                            font-family: Arial, sans-serif; 
+                            font-size: 8.5pt; 
+                            table-layout: auto;
+                        }
+                        th, td { 
+                            border: 1px solid #cbd5e1; 
+                            padding: 4px 6px; 
+                            text-align: left; 
+                            vertical-align: top; 
+                            word-break: break-word;
+                        }
+                        th { 
+                            background-color: #f1f5f9; 
+                            color: #475569; 
+                            font-weight: bold; 
+                        }
                     </style>
                 </head>
                 <body>
                     <div class="Section1">
-                        <h2>Mis Datos en Tiempo Real</h2>
+                        <h2>Mis Datos (Desde Columna 19)</h2>
                         ${tablaLimpia}
                     </div>
                 </body>
                 </html>`;
 
-            // 3. Forzar tipo clásico de MS Word.
             const blob = new Blob(['\ufeff', htmlDocx], {
-                type: 'application/msword' 
+                type: 'application/msword'
             });
 
             const fechaActual = new Date().toISOString().slice(0, 10);
             const enlace = document.createElement('a');
             enlace.href = URL.createObjectURL(blob);
-            
-            // 4. Usar extensión .doc para evitar validaciones de formato corrupto en Office modernos
-            enlace.download = `Tabla_Datos_${fechaActual}.doc`;
+            enlace.download = `Datos_Col19_${fechaActual}.doc`;
             
             document.body.appendChild(enlace);
             enlace.click();
