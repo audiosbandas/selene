@@ -1,6 +1,6 @@
 </BR></BR>
 
-Flotante 6
+Flotante 4
 
 
 </BR></BR></BR>
@@ -226,20 +226,6 @@ Flotante 6
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
         // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
-        // Devuelve el zoom de pellizco de la página a 1x (al cambiar el viewport un instante)
-        function resetearZoomPagina(alTerminar) {
-            const meta = document.querySelector('meta[name="viewport"]');
-            if (!meta) { alTerminar(); return; }
-
-            const original = meta.getAttribute('content');
-            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no');
-
-            setTimeout(() => {
-                meta.setAttribute('content', original);
-                alTerminar();
-            }, 150);
-        }
-
         function cambiarBloque(direccion) {
             const nuevo = bloqueActual + direccion;
             if (nuevo < 0 || nuevo > 1) return;
@@ -248,17 +234,10 @@ Flotante 6
 
             aplicarZoomOptimo();
 
-            // Si el usuario había hecho zoom con los dedos, se vuelve a 1x para que el grupo
-            // de columnas se vea completo a lo ancho, y se recalcula el ajuste
-            const escalaPagina = window.visualViewport ? window.visualViewport.scale : 1;
-            if (escalaPagina > 1.01) {
-                resetearZoomPagina(() => {
-                    window.scrollTo(0, window.scrollY);
-                    aplicarZoomOptimo();
-                });
-            } else {
-                window.scrollTo(0, window.scrollY);
-            }
+            // Se lleva la vista al borde izquierdo de la página (también cuando hay zoom de pellizco),
+            // para que el grupo de columnas quede completo dentro de la pantalla
+            window.scrollTo(0, window.scrollY);
+            reajustarBarraFlotante();
         }
 
         function aplicarZoomOptimo() {
@@ -278,8 +257,14 @@ Flotante 6
             const anchoBloque2 = colsBloque2 * ANCHO_COL_18_MAS;
             const anchoTotal = anchoBloque1 + anchoBloque2;
 
-            // Ancho del layout (NO del visual viewport): no cambia al hacer pellizco
-            const anchoDisponible = document.documentElement.clientWidth - 30;
+            // Ancho realmente visible en pantalla: si hay zoom de pellizco, el visual viewport
+            // es más angosto que el layout, y el grupo se ajusta a ese ancho visible.
+            // (Sin zoom, ambos valores coinciden. Funciona igual en Chrome, Safari, Firefox, Edge, Samsung.)
+            const anchoLayout = document.documentElement.clientWidth;
+            const anchoVisible = window.visualViewport
+                ? Math.min(window.visualViewport.width, anchoLayout)
+                : anchoLayout;
+            const anchoDisponible = Math.max(100, anchoVisible - 30);
 
             let anchoObjetivo;
             let inicioBloque; // posición (sin escalar) donde empieza el bloque actual
