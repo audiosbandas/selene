@@ -1,4 +1,4 @@
-Word mejorado 4
+Word mejorado 5
 
 
 <!DOCTYPE html>
@@ -153,9 +153,6 @@ Word mejorado 4
         function aplicarZoomOptimo() {
             const visor = document.getElementById("visor-tabla");
             const tabla = document.getElementById("tabla-dinamica");
-            const btnPrev = document.getElementById("btn-prev");
-            const btnNext = document.getElementById("btn-next");
-            const indicador = document.getElementById("indicador-bloque");
 
             if (!totalColumnas) return;
             const colsBloque1 = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE);
@@ -268,7 +265,7 @@ Word mejorado 4
             }
         }
 
-        // --- EXPORTACIÓN NATIVA A .DOCX ---
+        // --- EXPORTACIÓN NATIVA A .DOCX AJUSTADA A TUS REQUERIMIENTOS ---
         async function exportarDesdeCol19DocxNativo() {
             try {
                 const docxLib = window.docx || window.docxJS;
@@ -301,12 +298,20 @@ Word mejorado 4
                     TextRun, 
                     HeightRule, 
                     BorderStyle,
-                    VerticalAlign,
                     TableLayoutType
                 } = docxLib;
 
-                const ALTO_FILA_DXA = 360; // Alto fijo (~18pt)
-                const ANCHO_MINIMO_COLUMNA_DXA = 1200; // Ancho mínimo por columna en DXA (~60pt / ~80px)
+                const numCols = theadCells.length - INDICE_INICIO;
+                
+                // Ancho exactamente proporcional al 100% dividido el total de columnas
+                const ANCHO_COLUMNA_PORCENTAJE = 100 / numCols;
+
+                // Cálculo proporcional del tamaño de letra en half-points (1 pt = 2 half-points)
+                // Se auto-ajusta según la cantidad de columnas para mantener la relación de aspecto de textos como "C# dim"
+                const TAMANO_FUENTE_HALF_PTS = Math.max(10, Math.min(16, Math.floor(220 / numCols)));
+
+                // Altura de fila exacta en dxa (1 pt = 20 dxa) para obligar a 1 sola línea de texto
+                const ALTO_FILA_DXA = Math.round(TAMANO_FUENTE_HALF_PTS * 16);
 
                 let filasDocx = [];
 
@@ -314,13 +319,18 @@ Word mejorado 4
                     return new TableCell({
                         children: [
                             new Paragraph({
-                                children: [new TextRun({ text: texto, bold: esEncabezado })],
-                                noWrap: true
+                                children: [
+                                    new TextRun({ 
+                                        text: texto, 
+                                        bold: esEncabezado, 
+                                        size: TAMANO_FUENTE_HALF_PTS 
+                                    })
+                                ],
+                                noWrap: true // Impide saltos de línea (fuerza desborde a la derecha)
                             })
                         ],
-                        width: { size: ANCHO_MINIMO_COLUMNA_DXA, type: WidthType.DXA },
-                        noWrap: true,
-                        verticalAlign: VerticalAlign.CENTER,
+                        width: { size: ANCHO_COLUMNA_PORCENTAJE, type: WidthType.PERCENTAGE },
+                        noWrap: true, // Asegura que la celda mantenga su ancho mínimo
                         shading: esEncabezado ? { fill: "F1F5F9" } : undefined
                     });
                 }
@@ -352,7 +362,7 @@ Word mejorado 4
                     }
                 });
 
-                // Objeto de borde sin líneas
+                // Bordes invisibles
                 const sinBorde = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 
                 // 3. Crear el documento Word nativo
@@ -370,12 +380,13 @@ Word mejorado 4
                         },
                         children: [
                             new Paragraph({
-                                children: [new TextRun({ text: "Mis Datos (Desde la Columna 19)", bold: true, size: 28 })],
-                                spacing: { after: 200 }
+                                children: [new TextRun({ text: "Mis Datos (Desde la Columna 19)", bold: true, size: 24 })],
+                                spacing: { after: 150 }
                             }),
                             new Table({
                                 rows: filasDocx,
-                                layout: TableLayoutType.FIXED,
+                                width: { size: 100, type: WidthType.PERCENTAGE },
+                                layout: TableLayoutType.FIXED, // Garantiza que el ancho de la tabla NO se altere al desbordar
                                 borders: {
                                     top: sinBorde,
                                     bottom: sinBorde,
@@ -389,7 +400,7 @@ Word mejorado 4
                     }]
                 });
 
-                // 4. Descargar el archivo
+                // 4. Descargar el archivo .docx
                 const blob = await Packer.toBlob(doc);
                 const fechaActual = new Date().toISOString().slice(0, 10);
                 const enlace = document.createElement('a');
