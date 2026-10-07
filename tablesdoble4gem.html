@@ -1,4 +1,4 @@
-Word mejorado 3
+Word mejorado 4
 
 
 <!DOCTYPE html>
@@ -300,12 +300,13 @@ Word mejorado 3
                     WidthType, 
                     TextRun, 
                     HeightRule, 
-                    BorderStyle 
+                    BorderStyle,
+                    VerticalAlign,
+                    TableLayoutType
                 } = docxLib;
 
-                const numCols = theadCells.length - INDICE_INICIO;
-                const ANCHO_COLUMNA_PORCENTAJE = 100 / numCols;
                 const ALTO_FILA_DXA = 360; // Alto fijo (~18pt)
+                const ANCHO_MINIMO_COLUMNA_DXA = 1200; // Ancho mínimo por columna en DXA (~60pt / ~80px)
 
                 let filasDocx = [];
 
@@ -317,8 +318,9 @@ Word mejorado 3
                                 noWrap: true
                             })
                         ],
-                        width: { size: ANCHO_COLUMNA_PORCENTAJE, type: WidthType.PERCENTAGE },
+                        width: { size: ANCHO_MINIMO_COLUMNA_DXA, type: WidthType.DXA },
                         noWrap: true,
+                        verticalAlign: VerticalAlign.CENTER,
                         shading: esEncabezado ? { fill: "F1F5F9" } : undefined
                     });
                 }
@@ -350,7 +352,7 @@ Word mejorado 3
                     }
                 });
 
-                // Objeto de borde sin líneas con color hexadecimal de 6 dígitos válido
+                // Objeto de borde sin líneas
                 const sinBorde = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
 
                 // 3. Crear el documento Word nativo
@@ -373,7 +375,7 @@ Word mejorado 3
                             }),
                             new Table({
                                 rows: filasDocx,
-                                width: { size: 100, type: WidthType.PERCENTAGE },
+                                layout: TableLayoutType.FIXED,
                                 borders: {
                                     top: sinBorde,
                                     bottom: sinBorde,
