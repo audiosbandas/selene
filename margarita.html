@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 3   (MARGARITA.html) ; ;
+prueba 4   (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -188,6 +188,9 @@ prueba 3   (MARGARITA.html) ; ;
            Necesitan fondo propio y z-index para tapar a las filas que pasan por debajo. */
         td.congelada { background-color: #ffffff; z-index: 5; }
         th.congelada { background-color: #f1f5f9; z-index: 5; }
+        /* Las celdas con texto quedan por encima de las vacías: su texto desborda hacia la derecha
+           sobre las celdas vecinas vacías sin quedar tapado por el fondo de éstas */
+        .congelada.con-texto { z-index: 6; }
     </style>
 </head>
 <body>
@@ -280,6 +283,7 @@ prueba 3   (MARGARITA.html) ; ;
             _filasCongeladas.forEach((fila) => {
                 Array.from(fila.cells).forEach((celda) => {
                     celda.classList.add("congelada");
+                    if (celda.querySelector(".celda")) celda.classList.add("con-texto");
                     _celdasCongeladas.push(celda);
                 });
             });
@@ -300,8 +304,12 @@ prueba 3   (MARGARITA.html) ; ;
             const altoCongeladas = rUltima.bottom - rPrimera.top;
             const altoTabla = tabla.getBoundingClientRect().height;
 
+            // Opción B: las filas quedan fijas justo debajo de la barra flotante
+            const barra = document.getElementById("barra-flotante");
+            const topFijo = barra ? barra.getBoundingClientRect().bottom + 2 : 0;
+
             // Desplazamiento en píxeles de pantalla: nunca negativo, y sin salirse por debajo de la tabla
-            let despl = Math.max(0, window.scrollY - topPagina);
+            let despl = Math.max(0, window.scrollY + topFijo - topPagina);
             despl = Math.min(despl, Math.max(0, altoTabla - altoCongeladas));
 
             // El desplazamiento se aplica dentro del contenido escalado, por eso se divide por la escala
