@@ -163,18 +163,18 @@ prueba 1   (MARGARITA.html)
             text-overflow: ellipsis;
         }
 
-        .col-28 {
-            width: 28px !important;
-            min-width: 28px !important;
-            max-width: 28px !important;
+        .col-32 {
+            width: 32px !important;
+            min-width: 32px !important;
+            max-width: 32px !important;
             padding: 6px 0px;
             font-size: 0.8rem;
         }
 
-        .col-64 {
-            width: 64px !important;
-            min-width: 64px !important;
-            max-width: 64px !important;
+        .col-50 {
+            width: 50px !important;
+            min-width: 50px !important;
+            max-width: 50px !important;
         }
 
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
@@ -218,14 +218,16 @@ prueba 1   (MARGARITA.html)
         })();
 
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
-        const GID = '574446661';
+        const GID = '574446661';        //margarita.html
+
+        //const GID = '1726751477';        //tablaclaudep1.html  
 
         let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
         let totalColumnas = 0;
         let datosFilas = []; // copia de los datos cargados (usada por la exportación)
         const LIMITE_PRIMER_BLOQUE = 17;
-        const ANCHO_COL_1_17 = 28;
-        const ANCHO_COL_18_MAS = 64;
+        const ANCHO_COL_1_17 = 32;
+        const ANCHO_COL_18_MAS = 50;
 
         // --- 2. BARRA FLOTANTE: SIGUE AL VISUAL VIEWPORT (ZOOM Y PANEO TÁCTIL) ---
         function reajustarBarraFlotante() {
@@ -668,7 +670,7 @@ prueba 1   (MARGARITA.html)
                 const tablaBody = document.querySelector("#tabla-dinamica tbody");
 
                 const claseColumna = (idx) =>
-                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
+                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-32 b1"' : 'class="col-50 b2"';
 
                 totalColumnas = filas[0].length;
 
