@@ -1,8 +1,8 @@
-tablaclaudep1.html
-prueba 2   (MARGARITA.html)
+tablaclaudep1.html ; ;
+prueba 3   (MARGARITA.html) ; ;
 
-28 reemplazado por 32
-64 reemplazado por 50
+28 reemplazado por 32 ; ;
+64 reemplazado por 50 ; ;
 
 
 <!DOCTYPE html>
@@ -182,6 +182,12 @@ prueba 2   (MARGARITA.html)
 
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
         tr:hover { background-color: #f8fafc; }
+
+        /* === FILAS CONGELADAS (hasta la Fila 3) ===
+           Las celdas de esas filas se desplazan por JS para quedar fijas arriba de la pantalla.
+           Necesitan fondo propio y z-index para tapar a las filas que pasan por debajo. */
+        td.congelada { background-color: #ffffff; z-index: 5; }
+        th.congelada { background-color: #f1f5f9; z-index: 5; }
     </style>
 </head>
 <body>
@@ -252,6 +258,70 @@ prueba 2   (MARGARITA.html)
         }
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
 
+        // --- 2b. FILAS CONGELADAS: LAS PRIMERAS 3 FILAS (ENCABEZADO + 2) QUEDAN FIJAS ARRIBA ---
+        const FILAS_CONGELADAS = 3;
+        let _filasCongeladas = [];
+        let _celdasCongeladas = [];
+        let _congeladasPendiente = false;
+
+        // Se llama una vez, después de dibujar la tabla
+        function marcarFilasCongeladas() {
+            _filasCongeladas = [];
+            _celdasCongeladas = [];
+
+            const filaEnc = document.querySelector("#tabla-dinamica thead tr");
+            if (filaEnc) _filasCongeladas.push(filaEnc);
+
+            const filasCuerpo = Array.from(document.querySelectorAll("#tabla-dinamica tbody tr"));
+            for (let i = 0; i < filasCuerpo.length && _filasCongeladas.length < FILAS_CONGELADAS; i++) {
+                _filasCongeladas.push(filasCuerpo[i]);
+            }
+
+            _filasCongeladas.forEach((fila) => {
+                Array.from(fila.cells).forEach((celda) => {
+                    celda.classList.add("congelada");
+                    _celdasCongeladas.push(celda);
+                });
+            });
+        }
+
+        // Desplaza las celdas de las filas congeladas para que acompañen el scroll vertical de la página
+        function actualizarFilasCongeladas() {
+            if (!_filasCongeladas.length) return;
+
+            const visor = document.getElementById("visor-tabla");
+            const tabla = document.getElementById("tabla-dinamica");
+            const escala = escalaActual();
+            if (!escala) return;
+
+            const topPagina = visor.getBoundingClientRect().top + window.scrollY;
+            const rPrimera = _filasCongeladas[0].getBoundingClientRect();
+            const rUltima = _filasCongeladas[_filasCongeladas.length - 1].getBoundingClientRect();
+            const altoCongeladas = rUltima.bottom - rPrimera.top;
+            const altoTabla = tabla.getBoundingClientRect().height;
+
+            // Desplazamiento en píxeles de pantalla: nunca negativo, y sin salirse por debajo de la tabla
+            let despl = Math.max(0, window.scrollY - topPagina);
+            despl = Math.min(despl, Math.max(0, altoTabla - altoCongeladas));
+
+            // El desplazamiento se aplica dentro del contenido escalado, por eso se divide por la escala
+            const valor = despl > 0 ? `translateY(${despl / escala}px)` : "";
+            for (let i = 0; i < _celdasCongeladas.length; i++) {
+                _celdasCongeladas[i].style.transform = valor;
+            }
+        }
+
+        function programarActualizacionCongeladas() {
+            if (_congeladasPendiente) return;
+            _congeladasPendiente = true;
+            requestAnimationFrame(() => {
+                _congeladasPendiente = false;
+                actualizarFilasCongeladas();
+            });
+        }
+
+        window.addEventListener('scroll', programarActualizacionCongeladas, { passive: true });
+
         // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
         let zoomUsuario = 1;
         let escalaBase = 1;
@@ -289,6 +359,9 @@ prueba 2   (MARGARITA.html)
                 contenedor.style.width = `${anchoTotal * escala}px`;
                 contenedor.style.height = `${tabla.offsetHeight * escala}px`;
             }
+
+            // Reubica las filas congeladas con la nueva escala
+            actualizarFilasCongeladas();
         }
 
         function aplicarZoomOptimo() {
@@ -700,6 +773,9 @@ prueba 2   (MARGARITA.html)
                     htmlBody += "</tr>";
                 }
                 tablaBody.innerHTML = htmlBody;
+
+                // Marca las primeras 3 filas como congeladas (antes del primer ajuste de escala)
+                marcarFilasCongeladas();
 
                 estado.style.display = "none";
                 document.getElementById("btn-exportar").disabled = false;
