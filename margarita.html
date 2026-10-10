@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 2   (MARGARITA.html) ; ;
+prueba 3   (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -629,7 +629,8 @@ prueba 2   (MARGARITA.html) ; ;
         const EXP_PAGINA_ANCHO = 11906;       // A4 vertical, en twips (1 pt = 20 twips)
         const EXP_PAGINA_ALTO = 16838;
         const EXP_MARGEN = 720;               // 0,5" = margen "Estrecho" de Word
-        const EXP_PADDING_CELDA = 30;         // relleno izquierdo/derecho de cada celda (twips)
+        const EXP_PADDING_IZQ = 10;           // relleno a la izquierda del texto en cada celda del .docx (twips)
+        const EXP_PADDING_DER = 0;            // relleno a la derecha del texto en cada celda del .docx (twips)
         const EXP_FUENTE = "Arial";
         const EXP_SEGURIDAD = 0.96;           // pequeño margen de seguridad en la medición del texto
 
@@ -685,7 +686,7 @@ prueba 2   (MARGARITA.html) ; ;
                 const anchoUtil = EXP_PAGINA_ANCHO - 2 * EXP_MARGEN;               // 10466 twips
                 const anchoCol = Math.floor(anchoUtil / EXP_CANT_COLS);            // 615 twips
                 const anchoTabla = anchoCol * EXP_CANT_COLS;
-                const anchoInteriorPt = (anchoCol - 2 * EXP_PADDING_CELDA) / 20;
+                const anchoInteriorPt = (anchoCol - EXP_PADDING_IZQ - EXP_PADDING_DER) / 20;
 
                 // Tamaño de letra: el mayor (en pasos de 0,5 pt) con el que el texto de referencia entra en una sola línea
                 const anchoRefPorPt = medirTextoPt(opcion.texto, 1, false);
@@ -720,7 +721,7 @@ prueba 2   (MARGARITA.html) ; ;
                         while (c + span < EXP_CANT_COLS && valores[c + span] === "") span++;
 
                         const anchoCelda = anchoCol * span;
-                        const anchoDispPt = (anchoCelda - 2 * EXP_PADDING_CELDA) / 20 * EXP_SEGURIDAD;
+                        const anchoDispPt = (anchoCelda - EXP_PADDING_IZQ - EXP_PADDING_DER) / 20 * EXP_SEGURIDAD;
                         const texto = ajustarTextoAlAncho(val.replace(/\s+/g, " "), anchoDispPt, tamPt, esEncabezado);
 
                         xml += `<w:tc><w:tcPr><w:tcW w:w="${anchoCelda}" w:type="dxa"/>`
@@ -741,7 +742,7 @@ prueba 2   (MARGARITA.html) ; ;
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`
 + `<w:tbl><w:tblPr><w:tblW w:w="${anchoTabla}" w:type="dxa"/><w:tblInd w:w="0" w:type="dxa"/>`
 + `<w:tblBorders>${borde}</w:tblBorders><w:tblLayout w:type="fixed"/>`
-+ `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="${EXP_PADDING_CELDA}" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="${EXP_PADDING_CELDA}" w:type="dxa"/></w:tblCellMar></w:tblPr>`
++ `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="${EXP_PADDING_IZQ}" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="${EXP_PADDING_DER}" w:type="dxa"/></w:tblCellMar></w:tblPr>`
 + `<w:tblGrid>${grilla}</w:tblGrid>${filasXML}</w:tbl>`
 + `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`
 + `<w:sectPr><w:pgSz w:w="${EXP_PAGINA_ANCHO}" w:h="${EXP_PAGINA_ALTO}" w:orient="portrait"/>`
