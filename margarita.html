@@ -1,8 +1,9 @@
 tablaclaudep1.html ; ;
-prueba 4   (MARGARITA.html) ; ;
+prueba 5   (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
+
 
 
 <!DOCTYPE html>
@@ -872,7 +873,9 @@ prueba 4   (MARGARITA.html) ; ;
         const PDF_PAGINA_ANCHO = 595.28;      // A4 vertical, en puntos
         const PDF_PAGINA_ALTO = 841.89;
         const PDF_MARGEN = 36;                // 0,5" = margen "Estrecho"
-        const PDF_PADDING_CELDA = 1.5;        // relleno izquierdo/derecho de cada celda (pt)
+        // Antes: PDF_PADDING_CELDA = 1.5 (igual a ambos lados). Para volver a la versión anterior: PDF_PAD_IZQ = 1.5 y PDF_PAD_DER = 1.5
+const PDF_PAD_IZQ = 0.5;              // relleno izquierdo de cada celda (pt)
+const PDF_PAD_DER = 0;                // relleno derecho de cada celda (pt)
         const PDF_INTERLINEADO = 1.3;         // alto de fila = tamaño de letra x este factor
         const PDF_SEGURIDAD = 0.96;
 
@@ -905,7 +908,7 @@ prueba 4   (MARGARITA.html) ; ;
                 // Geometría: ancho útil dividido en 17 columnas iguales
                 const anchoUtil = PDF_PAGINA_ANCHO - 2 * PDF_MARGEN;
                 const anchoCol = anchoUtil / EXP_CANT_COLS;
-                const anchoInterior = anchoCol - 2 * PDF_PADDING_CELDA;
+                const anchoInterior = anchoCol - PDF_PAD_IZQ - PDF_PAD_DER;
 
                 // Mide el ancho (pt) de un texto con el tamaño y estilo indicados
                 const medir = (texto, tam, negrita) => {
@@ -962,12 +965,12 @@ prueba 4   (MARGARITA.html) ; ;
                         let span = 1;
                         while (c + span < EXP_CANT_COLS && valores[c + span] === "") span++;
 
-                        const anchoDisp = (anchoCol * span - 2 * PDF_PADDING_CELDA) * PDF_SEGURIDAD;
+                        const anchoDisp = (anchoCol * span - PDF_PAD_IZQ - PDF_PAD_DER) * PDF_SEGURIDAD;
                         const texto = recortar(val, anchoDisp, esEncabezado);
 
                         doc.setFont("helvetica", esEncabezado ? "bold" : "normal");
                         doc.setFontSize(tamPt);
-                        doc.text(texto, xIni + c * anchoCol + PDF_PADDING_CELDA, y + altoFila * 0.74);
+                        doc.text(texto, xIni + c * anchoCol + PDF_PAD_IZQ, y + altoFila * 0.74);
                         c += span;
                     }
 
