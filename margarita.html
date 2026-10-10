@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 1   (MARGARITA.html) ; ;
+prueba 2   (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -18,6 +18,8 @@ prueba 1   (MARGARITA.html) ; ;
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <!-- JSZip: necesario para armar el archivo .docx al exportar -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- jsPDF: necesario para armar el archivo .pdf al exportar -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -88,6 +90,14 @@ prueba 1   (MARGARITA.html) ; ;
         }
         .btn-exportar:hover:not(:disabled) {
             background-color: #047857;
+        }
+
+        /* Opciones PDF (rojo oscuro, para distinguirlas de las de Word) */
+        .btn-pdf {
+            background-color: #b91c1c;
+        }
+        .btn-pdf:hover:not(:disabled) {
+            background-color: #991b1b;
         }
 
         /* Menú desplegable de Exportar */
@@ -228,8 +238,10 @@ prueba 1   (MARGARITA.html) ; ;
         <div class="menu-exportar">
             <button id="btn-exportar" class="btn-nav btn-exportar" onclick="alternarMenuExportar(event)" disabled>⭳ Exportar ▾</button>
             <div id="opciones-exportar" class="opciones-exportar">
-                <button class="btn-nav btn-exportar" onclick="exportarDocx('grados')">⭳ GRADOS (Cols 1-17)</button>
-                <button class="btn-nav btn-exportar" onclick="exportarDocx('acordes')">⭳ ACORDES (Cols 19-35)</button>
+                <button class="btn-nav btn-exportar" onclick="exportarDocx('grados')">⭳ GRADOS .docx (Cols 1-17)</button>
+                <button class="btn-nav btn-exportar" onclick="exportarDocx('acordes')">⭳ ACORDES .docx (Cols 19-35)</button>
+                <button class="btn-nav btn-pdf" onclick="exportarPdf('grados')">⭳ GRADOS .pdf (Cols 1-17)</button>
+                <button class="btn-nav btn-pdf" onclick="exportarPdf('acordes')">⭳ ACORDES .pdf (Cols 19-35)</button>
             </div>
         </div>
     </div>
@@ -603,14 +615,15 @@ prueba 1   (MARGARITA.html) ; ;
             return `<div class="celda"><span style="max-width:${maxAncho}px">${escaparHTML(texto)}</span></div>`;
         }
 
-        // --- 5. EXPORTAR A .DOCX (A4 vertical, márgenes estrechos) ---
+        // --- 5. EXPORTAR A .DOCX / .PDF (A4 vertical, márgenes estrechos) ---
         // Cada opción del menú Exportar tiene su propia configuración:
         //   colInicio: primera columna exportada (numeración 1-based)
         //   texto:     texto que debe entrar en UNA línea dentro de una celda (define el tamaño de letra)
-        //   prefijo:   nombre del archivo (se le agrega _AAAA-MM-DD.docx)
+        //   prefijo:   nombre del archivo .docx (se le agrega _AAAA-MM-DD.docx)
+        //   prefijoPdf: nombre del archivo .pdf (se le agrega _AAAA-MM-DD.pdf)
         const EXP_OPCIONES = {
-            grados:  { colInicio: 1,  texto: "IVaum",  prefijo: "ExportGRADOS" },
-            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES" }
+            grados:  { colInicio: 1,  texto: "IVaum",  prefijo: "ExportGRADOS",  prefijoPdf: "PDF_GRADOS" },
+            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES" }
         };
         const EXP_CANT_COLS = 17;             // cantidad de columnas del documento (todas de igual ancho)
         const EXP_PAGINA_ANCHO = 11906;       // A4 vertical, en twips (1 pt = 20 twips)
@@ -772,6 +785,125 @@ prueba 1   (MARGARITA.html) ; ;
             } catch (err) {
                 console.error("Error al exportar:", err);
                 alert("No se pudo exportar: " + err.message);
+                btn.disabled = false;
+            }
+        }
+
+        // --- 5b. EXPORTAR A .PDF (A4 vertical, márgenes estrechos, mismas reglas que el .docx) ---
+        const PDF_PAGINA_ANCHO = 595.28;      // A4 vertical, en puntos
+        const PDF_PAGINA_ALTO = 841.89;
+        const PDF_MARGEN = 36;                // 0,5" = margen "Estrecho"
+        const PDF_PADDING_CELDA = 1.5;        // relleno izquierdo/derecho de cada celda (pt)
+        const PDF_INTERLINEADO = 1.3;         // alto de fila = tamaño de letra x este factor
+        const PDF_SEGURIDAD = 0.96;
+
+        // Reemplaza símbolos que la fuente estándar del PDF (Helvetica) no puede dibujar
+        function limpiarTextoPdf(t) {
+            return String(t)
+                .replace(/\u266F/g, "#")      // ♯
+                .replace(/\u266D/g, "b")      // ♭
+                .replace(/\u266E/g, "")       // ♮
+                .replace(/[\u2018\u2019]/g, "'")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function exportarPdf(tipo) {
+            cerrarMenuExportar();
+
+            const opcion = EXP_OPCIONES[tipo];
+            if (!opcion) { alert("Opción de exportación desconocida."); return; }
+
+            const btn = document.getElementById("btn-exportar");
+            try {
+                if (!datosFilas.length) { alert("Todavía no hay datos cargados para exportar."); return; }
+                if (!window.jspdf || !window.jspdf.jsPDF) { alert("No se pudo cargar la librería de exportación (jsPDF). Revisa la conexión e intenta de nuevo."); return; }
+
+                btn.disabled = true;
+
+                const doc = new window.jspdf.jsPDF({ orientation: "portrait", unit: "pt", format: "a4", compress: true });
+
+                // Geometría: ancho útil dividido en 17 columnas iguales
+                const anchoUtil = PDF_PAGINA_ANCHO - 2 * PDF_MARGEN;
+                const anchoCol = anchoUtil / EXP_CANT_COLS;
+                const anchoInterior = anchoCol - 2 * PDF_PADDING_CELDA;
+
+                // Mide el ancho (pt) de un texto con el tamaño y estilo indicados
+                const medir = (texto, tam, negrita) => {
+                    doc.setFont("helvetica", negrita ? "bold" : "normal");
+                    doc.setFontSize(tam);
+                    return doc.getTextWidth(texto);
+                };
+
+                // Tamaño de letra: el mayor (en pasos de 0,5 pt) con el que el texto de referencia entra en una sola línea
+                const anchoRefPorPt = medir(opcion.texto, 100, false) / 100;
+                const tamPt = Math.max(1, Math.floor((anchoInterior / anchoRefPorPt) * PDF_SEGURIDAD * 2) / 2);
+                const altoFila = tamPt * PDF_INTERLINEADO;
+
+                const recortar = (texto, anchoDisp, negrita) => {
+                    if (medir(texto, tamPt, negrita) <= anchoDisp) return texto;
+                    let t = texto;
+                    while (t.length > 1 && medir(t + "…", tamPt, negrita) > anchoDisp) t = t.slice(0, -1);
+                    return t.trimEnd() + "…";
+                };
+
+                const iniIdx = opcion.colInicio - 1;
+                const xIni = PDF_MARGEN;
+                const yMax = PDF_PAGINA_ALTO - PDF_MARGEN;
+                let y = PDF_MARGEN;
+
+                doc.setLineWidth(0.3);
+                doc.setDrawColor(226, 232, 240);
+                doc.setTextColor(0, 0, 0);
+
+                for (let f = 0; f < datosFilas.length; f++) {
+                    const fila = datosFilas[f];
+                    const esEncabezado = (f === 0);
+
+                    if (y + altoFila > yMax) {
+                        doc.addPage();
+                        y = PDF_MARGEN;
+                        doc.setLineWidth(0.3);
+                        doc.setDrawColor(226, 232, 240);
+                        doc.setTextColor(0, 0, 0);
+                    }
+
+                    const valores = [];
+                    for (let c = 0; c < EXP_CANT_COLS; c++) valores.push(limpiarTextoPdf(fila[iniIdx + c] || ""));
+
+                    // Línea inferior de la fila
+                    doc.line(xIni, y + altoFila, xIni + anchoUtil, y + altoFila);
+
+                    let c = 0;
+                    while (c < EXP_CANT_COLS) {
+                        const val = valores[c];
+                        if (val === "") { c++; continue; }
+
+                        // El texto desborda hacia la derecha sobre las celdas vecinas vacías
+                        let span = 1;
+                        while (c + span < EXP_CANT_COLS && valores[c + span] === "") span++;
+
+                        const anchoDisp = (anchoCol * span - 2 * PDF_PADDING_CELDA) * PDF_SEGURIDAD;
+                        const texto = recortar(val, anchoDisp, esEncabezado);
+
+                        doc.setFont("helvetica", esEncabezado ? "bold" : "normal");
+                        doc.setFontSize(tamPt);
+                        doc.text(texto, xIni + c * anchoCol + PDF_PADDING_CELDA, y + altoFila * 0.74);
+                        c += span;
+                    }
+
+                    y += altoFila;
+                }
+
+                const hoy = new Date();
+                const pad = (n) => String(n).padStart(2, "0");
+                const nombre = `${opcion.prefijoPdf}_${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}.pdf`;
+                doc.save(nombre);
+                btn.disabled = false;
+
+            } catch (err) {
+                console.error("Error al exportar PDF:", err);
+                alert("No se pudo generar el archivo .pdf: " + err.message);
                 btn.disabled = false;
             }
         }
