@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 3   (MARGARITA.html) ; ;
+prueba 4   (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -226,6 +226,45 @@ prueba 3   (MARGARITA.html) ; ;
         /* Las celdas con texto quedan por encima de las vacías: su texto desborda hacia la derecha
            sobre las celdas vecinas vacías sin quedar tapado por el fondo de éstas */
         .congelada.con-texto { z-index: 6; }
+
+        /* === PANEL FIJO DE FILAS INMOVILIZADAS ===
+           Copia de las filas 1 a 3 en un panel position:fixed (lo maneja el navegador, no JS),
+           ubicado justo debajo de la barra flotante. Aparece cuando las filas reales salen de pantalla.
+           Se escala igual que la tabla y se sincroniza en horizontal con el visor. */
+        #filas-fijas {
+            position: fixed;
+            top: 0;
+            left: 15px;
+            width: calc(100% - 30px);
+            overflow: hidden;
+            background-color: #ffffff;
+            box-shadow: 0 6px 6px -5px rgba(15, 23, 42, 0.45); /* solo se nota abajo */
+            visibility: hidden;
+            pointer-events: none; /* los toques pasan al contenido: el desplazamiento no se interrumpe */
+            z-index: 9999990;     /* por debajo de la barra flotante (9999999) */
+        }
+        #contenedor-fijas {
+            display: block;
+            width: max-content;
+            transform-origin: top left;
+        }
+        /* La tabla copiada hereda la visibilidad del panel (antes la forzaba a "visible" y por eso
+           se veía siempre, aun con el panel oculto) */
+        #tabla-fijas { visibility: inherit; box-shadow: none; border-radius: 0; }
+
+        /* Cortina: tapa todo lo que queda por encima del panel fijo (a la izquierda de la barra
+           y entre la barra y el panel), para que no se vea la tabla pasando por detrás */
+        #cortina-fija {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background-color: #f8fafc; /* mismo color que el fondo de la página */
+            visibility: hidden;
+            pointer-events: none;
+            z-index: 9999989;          /* sobre la tabla, por debajo del panel y de la barra */
+        }
     </style>
 </head>
 <body>
@@ -243,6 +282,19 @@ prueba 3   (MARGARITA.html) ; ;
                 <button class="btn-nav btn-pdf" onclick="exportarPdf('grados')">⭳ GRADOS .pdf (Cols 1-17)</button>
                 <button class="btn-nav btn-pdf" onclick="exportarPdf('acordes')">⭳ ACORDES .pdf (Cols 19-35)</button>
             </div>
+        </div>
+    </div>
+
+    <!-- CORTINA QUE TAPA LA TABLA POR ENCIMA DEL PANEL FIJO -->
+    <div id="cortina-fija"></div>
+
+    <!-- PANEL FIJO CON COPIA DE LAS FILAS INMOVILIZADAS -->
+    <div id="filas-fijas">
+        <div id="contenedor-fijas">
+            <table id="tabla-fijas">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
 
@@ -330,36 +382,50 @@ prueba 3   (MARGARITA.html) ; ;
                     _celdasCongeladas.push(celda);
                 });
             });
+
+            // Copia de las filas inmovilizadas en el panel fijo
+            const theadFijas = document.querySelector("#tabla-fijas thead");
+            const tbodyFijas = document.querySelector("#tabla-fijas tbody");
+            theadFijas.innerHTML = "";
+            tbodyFijas.innerHTML = "";
+            _filasCongeladas.forEach((fila, i) => {
+                (i === 0 ? theadFijas : tbodyFijas).appendChild(fila.cloneNode(true));
+            });
         }
 
-        // Desplaza las celdas de las filas congeladas para que acompañen el scroll vertical de la página
+        // Muestra/oculta el panel fijo y lo mantiene alineado con el visor.
+        // Todas las posiciones se toman de elementos que NO están dentro del contenido con zoom
+        // (barra y visor), para que el cálculo sea idéntico con cualquier zoom o dispositivo.
         function actualizarFilasCongeladas() {
-            if (!_filasCongeladas.length) return;
+            const panel = document.getElementById("filas-fijas");
+            const cortina = document.getElementById("cortina-fija");
+            if (!panel || !cortina || !_filasCongeladas.length) return;
 
             const visor = document.getElementById("visor-tabla");
-            const tabla = document.getElementById("tabla-dinamica");
-            const escala = escalaActual();
-            if (!escala) return;
-
-            const topPagina = visor.getBoundingClientRect().top + window.scrollY;
-            const rPrimera = _filasCongeladas[0].getBoundingClientRect();
-            const rUltima = _filasCongeladas[_filasCongeladas.length - 1].getBoundingClientRect();
-            const altoCongeladas = rUltima.bottom - rPrimera.top;
-            const altoTabla = tabla.getBoundingClientRect().height;
-
-            // Opción B: las filas quedan fijas justo debajo de la barra flotante
             const barra = document.getElementById("barra-flotante");
+
+            // Opción B: el panel queda justo debajo de la barra flotante
             const topFijo = barra ? barra.getBoundingClientRect().bottom + 2 : 0;
 
-            // Desplazamiento en píxeles de pantalla: nunca negativo, y sin salirse por debajo de la tabla
-            let despl = Math.max(0, window.scrollY + topFijo - topPagina);
-            despl = Math.min(despl, Math.max(0, altoTabla - altoCongeladas));
+            // La tabla empieza en el borde superior del visor: ahí está la primera fila real
+            const r = visor.getBoundingClientRect();
+            const topNatural = r.top;
 
-            // El desplazamiento se aplica dentro del contenido escalado, por eso se divide por la escala
-            const valor = despl > 0 ? `translateY(${despl / escala}px)` : "";
-            for (let i = 0; i < _celdasCongeladas.length; i++) {
-                _celdasCongeladas[i].style.transform = valor;
-            }
+            panel.style.left = r.left + "px";
+            panel.style.width = r.width + "px";
+            panel.style.top = topFijo + "px";
+            panel.style.height = ""; // alto automático: el mismo que las 3 filas copiadas, con el mismo zoom
+
+            // La cortina cubre desde el borde superior de la pantalla hasta el panel
+            cortina.style.height = topFijo + "px";
+
+            // El panel aparece justo cuando la primera fila real llega a su posición (empalme exacto)
+            const visibilidad = (topNatural < topFijo) ? "visible" : "hidden";
+            panel.style.visibility = visibilidad;
+            cortina.style.visibility = visibilidad;
+
+            // Sincroniza el desplazamiento horizontal con el visor
+            panel.scrollLeft = visor.scrollLeft;
         }
 
         function programarActualizacionCongeladas() {
@@ -371,7 +437,13 @@ prueba 3   (MARGARITA.html) ; ;
             });
         }
 
-        window.addEventListener('scroll', programarActualizacionCongeladas, { passive: true });
+        window.addEventListener('scroll', actualizarFilasCongeladas, { passive: true });
+        // El scroll horizontal del visor se copia al panel fijo de inmediato (sin esperar al siguiente cuadro)
+        document.getElementById("visor-tabla").addEventListener('scroll', () => {
+            const panel = document.getElementById("filas-fijas");
+            if (panel) panel.scrollLeft = document.getElementById("visor-tabla").scrollLeft;
+        }, { passive: true });
+        window.addEventListener('resize', programarActualizacionCongeladas);
 
         // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
         let zoomUsuario = 1;
@@ -394,24 +466,30 @@ prueba 3   (MARGARITA.html) ; ;
             return escalaBase * zoomUsuario;
         }
 
-        function aplicarEscala(escala) {
-            const contenedor = document.getElementById("contenedor-escalado");
-            const tabla = document.getElementById("tabla-dinamica");
+        function anchoTotalTabla() {
+            return Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE) * ANCHO_COL_1_17
+                + Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE) * ANCHO_COL_18_MAS;
+        }
 
+        function escalarContenedor(contenedor, tabla, escala) {
             if ('zoom' in contenedor.style) {
                 contenedor.style.zoom = escala;
                 contenedor.style.width = "";
                 contenedor.style.height = "";
                 tabla.style.transform = "";
             } else {
-                const anchoTotal = Math.min(totalColumnas, LIMITE_PRIMER_BLOQUE) * ANCHO_COL_1_17
-                    + Math.max(0, totalColumnas - LIMITE_PRIMER_BLOQUE) * ANCHO_COL_18_MAS;
                 tabla.style.transform = `scale(${escala})`;
-                contenedor.style.width = `${anchoTotal * escala}px`;
+                contenedor.style.width = `${anchoTotalTabla() * escala}px`;
                 contenedor.style.height = `${tabla.offsetHeight * escala}px`;
             }
+        }
 
-            // Reubica las filas congeladas con la nueva escala
+        function aplicarEscala(escala) {
+            // La tabla real y el panel fijo se escalan siempre igual
+            escalarContenedor(document.getElementById("contenedor-escalado"), document.getElementById("tabla-dinamica"), escala);
+            escalarContenedor(document.getElementById("contenedor-fijas"), document.getElementById("tabla-fijas"), escala);
+
+            // Reubica el panel de filas inmovilizadas con la nueva escala
             actualizarFilasCongeladas();
         }
 
