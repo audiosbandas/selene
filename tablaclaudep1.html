@@ -1,5 +1,5 @@
 tablaclaudep1.html
-prueba 1
+prueba 2
 
 
 <!DOCTYPE html>
@@ -15,6 +15,8 @@ prueba 1
     <title>Tabla Dinámica Paginada - Google Sheets</title>
     <!-- JSZip: necesario para armar el archivo .docx al exportar -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- jsPDF: necesario para armar el archivo .pdf al exportar -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -85,6 +87,39 @@ prueba 1
         }
         .btn-exportar:hover:not(:disabled) {
             background-color: #047857;
+        }
+
+        /* Opciones PDF (rojo oscuro, para distinguirlas de las de Word) */
+        .btn-pdf {
+            background-color: #b91c1c;
+        }
+        .btn-pdf:hover:not(:disabled) {
+            background-color: #991b1b;
+        }
+
+        /* Menú desplegable de Exportar */
+        .menu-exportar {
+            position: relative;
+        }
+        .opciones-exportar {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            flex-direction: column;
+            gap: 6px;
+            background-color: #ffffff;
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            z-index: 10;
+        }
+        .opciones-exportar.abierto {
+            display: flex;
+        }
+        .opciones-exportar .btn-nav {
+            text-align: left;
         }
 
         .indicador-bloque {
@@ -163,22 +198,31 @@ prueba 1
             text-overflow: ellipsis;
         }
 
-        .col-28 {
-            width: 28px !important;
-            min-width: 28px !important;
-            max-width: 28px !important;
+        .col-32 {
+            width: 32px !important;
+            min-width: 32px !important;
+            max-width: 32px !important;
             padding: 6px 0px;
             font-size: 0.8rem;
         }
 
-        .col-64 {
-            width: 64px !important;
-            min-width: 64px !important;
-            max-width: 64px !important;
+        .col-50 {
+            width: 50px !important;
+            min-width: 50px !important;
+            max-width: 50px !important;
         }
 
         th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
         tr:hover { background-color: #f8fafc; }
+
+        /* === FILAS CONGELADAS (hasta la Fila 3) ===
+           Las celdas de esas filas se desplazan por JS para quedar fijas arriba de la pantalla.
+           Necesitan fondo propio y z-index para tapar a las filas que pasan por debajo. */
+        td.congelada { background-color: #ffffff; z-index: 5; }
+        th.congelada { background-color: #f1f5f9; z-index: 5; }
+        /* Las celdas con texto quedan por encima de las vacías: su texto desborda hacia la derecha
+           sobre las celdas vecinas vacías sin quedar tapado por el fondo de éstas */
+        .congelada.con-texto { z-index: 6; }
     </style>
 </head>
 <body>
@@ -188,7 +232,15 @@ prueba 1
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
-        <button id="btn-exportar" class="btn-nav btn-exportar" onclick="exportarDocx()" disabled>⭳ Exportar</button>
+        <div class="menu-exportar">
+            <button id="btn-exportar" class="btn-nav btn-exportar" onclick="alternarMenuExportar(event)" disabled>⭳ Exportar ▾</button>
+            <div id="opciones-exportar" class="opciones-exportar">
+                <button class="btn-nav btn-exportar" onclick="exportarDocx('grados')">⭳ GRADOS .docx (Cols 1-17)</button>
+                <button class="btn-nav btn-exportar" onclick="exportarDocx('acordes')">⭳ ACORDES .docx (Cols 19-35)</button>
+                <button class="btn-nav btn-pdf" onclick="exportarPdf('grados')">⭳ GRADOS .pdf (Cols 1-17)</button>
+                <button class="btn-nav btn-pdf" onclick="exportarPdf('acordes')">⭳ ACORDES .pdf (Cols 19-35)</button>
+            </div>
+        </div>
     </div>
 
     <h2>Mis Datos en Tiempo Real</h2>
@@ -218,14 +270,16 @@ prueba 1
         })();
 
         const ID_HOJA = '2PACX-1vS8yI_vyMAo44MNjXcV_WZskR24ld2Fh_GKdmXxmKSgfA5XNNLmJH1klnBcC93kXbtN7dm0Nj43aLEw';
-        const GID = '1726751477';
+        const GID = '574446661';        //margarita.html
+
+        //const GID = '1726751477';        //tablaclaudep1.html  
 
         let bloqueActual = 0; // 0 = Izquierda (Cols 1 a 17), 1 = Derecha (Cols 18+)
         let totalColumnas = 0;
         let datosFilas = []; // copia de los datos cargados (usada por la exportación)
         const LIMITE_PRIMER_BLOQUE = 17;
-        const ANCHO_COL_1_17 = 28;
-        const ANCHO_COL_18_MAS = 64;
+        const ANCHO_COL_1_17 = 32;
+        const ANCHO_COL_18_MAS = 50;
 
         // --- 2. BARRA FLOTANTE: SIGUE AL VISUAL VIEWPORT (ZOOM Y PANEO TÁCTIL) ---
         function reajustarBarraFlotante() {
@@ -246,6 +300,75 @@ prueba 1
             window.visualViewport.addEventListener('resize', reajustarBarraFlotante);
         }
         window.addEventListener('scroll', reajustarBarraFlotante, { passive: true });
+
+        // --- 2b. FILAS CONGELADAS: LAS PRIMERAS 3 FILAS (ENCABEZADO + 2) QUEDAN FIJAS ARRIBA ---
+        const FILAS_CONGELADAS = 3;
+        let _filasCongeladas = [];
+        let _celdasCongeladas = [];
+        let _congeladasPendiente = false;
+
+        // Se llama una vez, después de dibujar la tabla
+        function marcarFilasCongeladas() {
+            _filasCongeladas = [];
+            _celdasCongeladas = [];
+
+            const filaEnc = document.querySelector("#tabla-dinamica thead tr");
+            if (filaEnc) _filasCongeladas.push(filaEnc);
+
+            const filasCuerpo = Array.from(document.querySelectorAll("#tabla-dinamica tbody tr"));
+            for (let i = 0; i < filasCuerpo.length && _filasCongeladas.length < FILAS_CONGELADAS; i++) {
+                _filasCongeladas.push(filasCuerpo[i]);
+            }
+
+            _filasCongeladas.forEach((fila) => {
+                Array.from(fila.cells).forEach((celda) => {
+                    celda.classList.add("congelada");
+                    if (celda.querySelector(".celda")) celda.classList.add("con-texto");
+                    _celdasCongeladas.push(celda);
+                });
+            });
+        }
+
+        // Desplaza las celdas de las filas congeladas para que acompañen el scroll vertical de la página
+        function actualizarFilasCongeladas() {
+            if (!_filasCongeladas.length) return;
+
+            const visor = document.getElementById("visor-tabla");
+            const tabla = document.getElementById("tabla-dinamica");
+            const escala = escalaActual();
+            if (!escala) return;
+
+            const topPagina = visor.getBoundingClientRect().top + window.scrollY;
+            const rPrimera = _filasCongeladas[0].getBoundingClientRect();
+            const rUltima = _filasCongeladas[_filasCongeladas.length - 1].getBoundingClientRect();
+            const altoCongeladas = rUltima.bottom - rPrimera.top;
+            const altoTabla = tabla.getBoundingClientRect().height;
+
+            // Opción B: las filas quedan fijas justo debajo de la barra flotante
+            const barra = document.getElementById("barra-flotante");
+            const topFijo = barra ? barra.getBoundingClientRect().bottom + 2 : 0;
+
+            // Desplazamiento en píxeles de pantalla: nunca negativo, y sin salirse por debajo de la tabla
+            let despl = Math.max(0, window.scrollY + topFijo - topPagina);
+            despl = Math.min(despl, Math.max(0, altoTabla - altoCongeladas));
+
+            // El desplazamiento se aplica dentro del contenido escalado, por eso se divide por la escala
+            const valor = despl > 0 ? `translateY(${despl / escala}px)` : "";
+            for (let i = 0; i < _celdasCongeladas.length; i++) {
+                _celdasCongeladas[i].style.transform = valor;
+            }
+        }
+
+        function programarActualizacionCongeladas() {
+            if (_congeladasPendiente) return;
+            _congeladasPendiente = true;
+            requestAnimationFrame(() => {
+                _congeladasPendiente = false;
+                actualizarFilasCongeladas();
+            });
+        }
+
+        window.addEventListener('scroll', programarActualizacionCongeladas, { passive: true });
 
         // --- 3. NAVEGACIÓN Y AJUSTE INICIAL AL ANCHO DE PANTALLA ---
         let zoomUsuario = 1;
@@ -284,6 +407,9 @@ prueba 1
                 contenedor.style.width = `${anchoTotal * escala}px`;
                 contenedor.style.height = `${tabla.offsetHeight * escala}px`;
             }
+
+            // Reubica las filas congeladas con la nueva escala
+            actualizarFilasCongeladas();
         }
 
         function aplicarZoomOptimo() {
@@ -486,16 +612,36 @@ prueba 1
             return `<div class="celda"><span style="max-width:${maxAncho}px">${escaparHTML(texto)}</span></div>`;
         }
 
-        // --- 5. EXPORTAR A .DOCX (A4 vertical, márgenes estrechos, desde la columna 19) ---
-        const EXP_COL_INICIO = 19;            // primera columna exportada (numeración 1-based)
+        // --- 5. EXPORTAR A .DOCX / .PDF (A4 vertical, márgenes estrechos) ---
+        // Cada opción del menú Exportar tiene su propia configuración:
+        //   colInicio: primera columna exportada (numeración 1-based)
+        //   texto:     texto que debe entrar en UNA línea dentro de una celda (define el tamaño de letra)
+        //   prefijo:   nombre del archivo .docx (se le agrega _AAAA-MM-DD.docx)
+        //   prefijoPdf: nombre del archivo .pdf (se le agrega _AAAA-MM-DD.pdf)
+        const EXP_OPCIONES = {
+            grados:  { colInicio: 1,  texto: "IVaum",  prefijo: "ExportGRADOS",  prefijoPdf: "PDF_GRADOS" },
+            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES" }
+        };
         const EXP_CANT_COLS = 17;             // cantidad de columnas del documento (todas de igual ancho)
-        const EXP_TEXTO_REFERENCIA = "C# dim"; // texto que debe entrar en UNA línea dentro de una celda
         const EXP_PAGINA_ANCHO = 11906;       // A4 vertical, en twips (1 pt = 20 twips)
         const EXP_PAGINA_ALTO = 16838;
         const EXP_MARGEN = 720;               // 0,5" = margen "Estrecho" de Word
-        const EXP_PADDING_CELDA = 30;         // relleno izquierdo/derecho de cada celda (twips)
+        const EXP_PADDING_IZQ = 10;           // relleno a la izquierda del texto en cada celda del .docx (twips)
+        const EXP_PADDING_DER = 0;            // relleno a la derecha del texto en cada celda del .docx (twips)
         const EXP_FUENTE = "Arial";
         const EXP_SEGURIDAD = 0.96;           // pequeño margen de seguridad en la medición del texto
+
+        // Menú desplegable del botón Exportar
+        function alternarMenuExportar(e) {
+            if (e) e.stopPropagation();
+            document.getElementById("opciones-exportar").classList.toggle("abierto");
+        }
+        function cerrarMenuExportar() {
+            document.getElementById("opciones-exportar").classList.remove("abierto");
+        }
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".menu-exportar")) cerrarMenuExportar();
+        });
 
         function escaparXML(t) {
             return String(t)
@@ -520,7 +666,12 @@ prueba 1
             return t.trimEnd() + "…";
         }
 
-        function exportarDocx() {
+        function exportarDocx(tipo) {
+            cerrarMenuExportar();
+
+            const opcion = EXP_OPCIONES[tipo];
+            if (!opcion) { alert("Opción de exportación desconocida."); return; }
+
             const btn = document.getElementById("btn-exportar");
             try {
                 if (!datosFilas.length) { alert("Todavía no hay datos cargados para exportar."); return; }
@@ -532,15 +683,14 @@ prueba 1
                 const anchoUtil = EXP_PAGINA_ANCHO - 2 * EXP_MARGEN;               // 10466 twips
                 const anchoCol = Math.floor(anchoUtil / EXP_CANT_COLS);            // 615 twips
                 const anchoTabla = anchoCol * EXP_CANT_COLS;
-                const anchoColPt = anchoCol / 20;
-                const anchoInteriorPt = (anchoCol - 2 * EXP_PADDING_CELDA) / 20;
+                const anchoInteriorPt = (anchoCol - EXP_PADDING_IZQ - EXP_PADDING_DER) / 20;
 
-                // Tamaño de letra: el mayor (en pasos de 0,5 pt) con el que "C# dim" entra en una sola línea
-                const anchoRefPorPt = medirTextoPt(EXP_TEXTO_REFERENCIA, 1, false);
+                // Tamaño de letra: el mayor (en pasos de 0,5 pt) con el que el texto de referencia entra en una sola línea
+                const anchoRefPorPt = medirTextoPt(opcion.texto, 1, false);
                 const tamPt = Math.max(1, Math.floor((anchoInteriorPt / anchoRefPorPt) * EXP_SEGURIDAD * 2) / 2);
                 const sz = Math.round(tamPt * 2); // medio-puntos para Word
 
-                const iniIdx = EXP_COL_INICIO - 1;
+                const iniIdx = opcion.colInicio - 1;
 
                 const rPr = (negrita) =>
                     `<w:rPr><w:rFonts w:ascii="${EXP_FUENTE}" w:hAnsi="${EXP_FUENTE}" w:cs="${EXP_FUENTE}"/>${negrita ? "<w:b/>" : ""}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr>`;
@@ -568,7 +718,7 @@ prueba 1
                         while (c + span < EXP_CANT_COLS && valores[c + span] === "") span++;
 
                         const anchoCelda = anchoCol * span;
-                        const anchoDispPt = (anchoCelda - 2 * EXP_PADDING_CELDA) / 20 * EXP_SEGURIDAD;
+                        const anchoDispPt = (anchoCelda - EXP_PADDING_IZQ - EXP_PADDING_DER) / 20 * EXP_SEGURIDAD;
                         const texto = ajustarTextoAlAncho(val.replace(/\s+/g, " "), anchoDispPt, tamPt, esEncabezado);
 
                         xml += `<w:tc><w:tcPr><w:tcW w:w="${anchoCelda}" w:type="dxa"/>`
@@ -589,7 +739,7 @@ prueba 1
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`
 + `<w:tbl><w:tblPr><w:tblW w:w="${anchoTabla}" w:type="dxa"/><w:tblInd w:w="0" w:type="dxa"/>`
 + `<w:tblBorders>${borde}</w:tblBorders><w:tblLayout w:type="fixed"/>`
-+ `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="${EXP_PADDING_CELDA}" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="${EXP_PADDING_CELDA}" w:type="dxa"/></w:tblCellMar></w:tblPr>`
++ `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="${EXP_PADDING_IZQ}" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="${EXP_PADDING_DER}" w:type="dxa"/></w:tblCellMar></w:tblPr>`
 + `<w:tblGrid>${grilla}</w:tblGrid>${filasXML}</w:tbl>`
 + `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`
 + `<w:sectPr><w:pgSz w:w="${EXP_PAGINA_ANCHO}" w:h="${EXP_PAGINA_ALTO}" w:orient="portrait"/>`
@@ -616,7 +766,7 @@ prueba 1
                 }).then((blob) => {
                     const hoy = new Date();
                     const pad = (n) => String(n).padStart(2, "0");
-                    const nombre = `Exportacion_${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}.docx`;
+                    const nombre = `${opcion.prefijo}_${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}.docx`;
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
@@ -633,6 +783,125 @@ prueba 1
             } catch (err) {
                 console.error("Error al exportar:", err);
                 alert("No se pudo exportar: " + err.message);
+                btn.disabled = false;
+            }
+        }
+
+        // --- 5b. EXPORTAR A .PDF (A4 vertical, márgenes estrechos, mismas reglas que el .docx) ---
+        const PDF_PAGINA_ANCHO = 595.28;      // A4 vertical, en puntos
+        const PDF_PAGINA_ALTO = 841.89;
+        const PDF_MARGEN = 36;                // 0,5" = margen "Estrecho"
+        const PDF_PADDING_CELDA = 1.5;        // relleno izquierdo/derecho de cada celda (pt)
+        const PDF_INTERLINEADO = 1.3;         // alto de fila = tamaño de letra x este factor
+        const PDF_SEGURIDAD = 0.96;
+
+        // Reemplaza símbolos que la fuente estándar del PDF (Helvetica) no puede dibujar
+        function limpiarTextoPdf(t) {
+            return String(t)
+                .replace(/\u266F/g, "#")      // ♯
+                .replace(/\u266D/g, "b")      // ♭
+                .replace(/\u266E/g, "")       // ♮
+                .replace(/[\u2018\u2019]/g, "'")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function exportarPdf(tipo) {
+            cerrarMenuExportar();
+
+            const opcion = EXP_OPCIONES[tipo];
+            if (!opcion) { alert("Opción de exportación desconocida."); return; }
+
+            const btn = document.getElementById("btn-exportar");
+            try {
+                if (!datosFilas.length) { alert("Todavía no hay datos cargados para exportar."); return; }
+                if (!window.jspdf || !window.jspdf.jsPDF) { alert("No se pudo cargar la librería de exportación (jsPDF). Revisa la conexión e intenta de nuevo."); return; }
+
+                btn.disabled = true;
+
+                const doc = new window.jspdf.jsPDF({ orientation: "portrait", unit: "pt", format: "a4", compress: true });
+
+                // Geometría: ancho útil dividido en 17 columnas iguales
+                const anchoUtil = PDF_PAGINA_ANCHO - 2 * PDF_MARGEN;
+                const anchoCol = anchoUtil / EXP_CANT_COLS;
+                const anchoInterior = anchoCol - 2 * PDF_PADDING_CELDA;
+
+                // Mide el ancho (pt) de un texto con el tamaño y estilo indicados
+                const medir = (texto, tam, negrita) => {
+                    doc.setFont("helvetica", negrita ? "bold" : "normal");
+                    doc.setFontSize(tam);
+                    return doc.getTextWidth(texto);
+                };
+
+                // Tamaño de letra: el mayor (en pasos de 0,5 pt) con el que el texto de referencia entra en una sola línea
+                const anchoRefPorPt = medir(opcion.texto, 100, false) / 100;
+                const tamPt = Math.max(1, Math.floor((anchoInterior / anchoRefPorPt) * PDF_SEGURIDAD * 2) / 2);
+                const altoFila = tamPt * PDF_INTERLINEADO;
+
+                const recortar = (texto, anchoDisp, negrita) => {
+                    if (medir(texto, tamPt, negrita) <= anchoDisp) return texto;
+                    let t = texto;
+                    while (t.length > 1 && medir(t + "…", tamPt, negrita) > anchoDisp) t = t.slice(0, -1);
+                    return t.trimEnd() + "…";
+                };
+
+                const iniIdx = opcion.colInicio - 1;
+                const xIni = PDF_MARGEN;
+                const yMax = PDF_PAGINA_ALTO - PDF_MARGEN;
+                let y = PDF_MARGEN;
+
+                doc.setLineWidth(0.3);
+                doc.setDrawColor(226, 232, 240);
+                doc.setTextColor(0, 0, 0);
+
+                for (let f = 0; f < datosFilas.length; f++) {
+                    const fila = datosFilas[f];
+                    const esEncabezado = (f === 0);
+
+                    if (y + altoFila > yMax) {
+                        doc.addPage();
+                        y = PDF_MARGEN;
+                        doc.setLineWidth(0.3);
+                        doc.setDrawColor(226, 232, 240);
+                        doc.setTextColor(0, 0, 0);
+                    }
+
+                    const valores = [];
+                    for (let c = 0; c < EXP_CANT_COLS; c++) valores.push(limpiarTextoPdf(fila[iniIdx + c] || ""));
+
+                    // Línea inferior de la fila
+                    doc.line(xIni, y + altoFila, xIni + anchoUtil, y + altoFila);
+
+                    let c = 0;
+                    while (c < EXP_CANT_COLS) {
+                        const val = valores[c];
+                        if (val === "") { c++; continue; }
+
+                        // El texto desborda hacia la derecha sobre las celdas vecinas vacías
+                        let span = 1;
+                        while (c + span < EXP_CANT_COLS && valores[c + span] === "") span++;
+
+                        const anchoDisp = (anchoCol * span - 2 * PDF_PADDING_CELDA) * PDF_SEGURIDAD;
+                        const texto = recortar(val, anchoDisp, esEncabezado);
+
+                        doc.setFont("helvetica", esEncabezado ? "bold" : "normal");
+                        doc.setFontSize(tamPt);
+                        doc.text(texto, xIni + c * anchoCol + PDF_PADDING_CELDA, y + altoFila * 0.74);
+                        c += span;
+                    }
+
+                    y += altoFila;
+                }
+
+                const hoy = new Date();
+                const pad = (n) => String(n).padStart(2, "0");
+                const nombre = `${opcion.prefijoPdf}_${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}.pdf`;
+                doc.save(nombre);
+                btn.disabled = false;
+
+            } catch (err) {
+                console.error("Error al exportar PDF:", err);
+                alert("No se pudo generar el archivo .pdf: " + err.message);
                 btn.disabled = false;
             }
         }
@@ -668,7 +937,7 @@ prueba 1
                 const tablaBody = document.querySelector("#tabla-dinamica tbody");
 
                 const claseColumna = (idx) =>
-                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-28 b1"' : 'class="col-64 b2"';
+                    idx < LIMITE_PRIMER_BLOQUE ? 'class="col-32 b1"' : 'class="col-50 b2"';
 
                 totalColumnas = filas[0].length;
 
@@ -695,6 +964,9 @@ prueba 1
                     htmlBody += "</tr>";
                 }
                 tablaBody.innerHTML = htmlBody;
+
+                // Marca las primeras 3 filas como congeladas (antes del primer ajuste de escala)
+                marcarFilasCongeladas();
 
                 estado.style.display = "none";
                 document.getElementById("btn-exportar").disabled = false;
