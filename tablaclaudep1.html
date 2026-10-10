@@ -1,5 +1,5 @@
 tablaclaudep1.html
-prueba 3
+prueba 4
 
 
 <!DOCTYPE html>
@@ -235,7 +235,6 @@ prueba 3
             width: calc(100% - 30px);
             overflow: hidden;
             background-color: #ffffff;
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
             visibility: hidden;
             pointer-events: none; /* los toques pasan al contenido: el desplazamiento no se interrumpe */
             z-index: 9999990;     /* por debajo de la barra flotante (9999999) */
@@ -245,7 +244,21 @@ prueba 3
             width: max-content;
             transform-origin: top left;
         }
-        #tabla-fijas { visibility: visible; }
+        #tabla-fijas { visibility: visible; box-shadow: none; border-radius: 0; }
+
+        /* Cortina: tapa todo lo que queda por encima del panel fijo (a la izquierda de la barra
+           y entre la barra y el panel), para que no se vea la tabla pasando por detrás */
+        #cortina-fija {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background-color: #f8fafc; /* mismo color que el fondo de la página */
+            visibility: hidden;
+            pointer-events: none;
+            z-index: 9999989;          /* sobre la tabla, por debajo del panel y de la barra */
+        }
     </style>
 </head>
 <body>
@@ -265,6 +278,9 @@ prueba 3
             </div>
         </div>
     </div>
+
+    <!-- CORTINA QUE TAPA LA TABLA POR ENCIMA DEL PANEL FIJO -->
+    <div id="cortina-fija"></div>
 
     <!-- PANEL FIJO CON COPIA DE LAS FILAS INMOVILIZADAS -->
     <div id="filas-fijas">
@@ -382,16 +398,29 @@ prueba 3
             // Opción B: el panel queda justo debajo de la barra flotante
             const topFijo = barra ? barra.getBoundingClientRect().bottom + 2 : 0;
 
-            // Posición real (sin desplazar) de la primera fila inmovilizada
-            const topNatural = _filasCongeladas[0].getBoundingClientRect().top;
+            // Posición y alto reales (sin desplazar) de las filas inmovilizadas
+            const rPrimera = _filasCongeladas[0].getBoundingClientRect();
+            const rUltima = _filasCongeladas[_filasCongeladas.length - 1].getBoundingClientRect();
+            const topNatural = rPrimera.top;
+            const altoReal = Math.ceil(rUltima.bottom - rPrimera.top);
 
             const r = visor.getBoundingClientRect();
+            const cortina = document.getElementById("cortina-fija");
+
+            // El panel mide exactamente lo mismo que las 3 filas reales (con el zoom actual),
+            // así las tapa por completo mientras éstas pasan por debajo
             panel.style.left = r.left + "px";
             panel.style.width = r.width + "px";
             panel.style.top = topFijo + "px";
+            panel.style.height = altoReal + "px";
 
-            // Mientras las filas reales se ven en su lugar no hace falta el panel
-            panel.style.visibility = (topNatural < topFijo) ? "visible" : "hidden";
+            // La cortina cubre desde el borde superior de la pantalla hasta el panel
+            cortina.style.height = topFijo + "px";
+
+            // Mientras las filas reales se ven en su lugar no hace falta el panel ni la cortina
+            const visibilidad = (topNatural < topFijo) ? "visible" : "hidden";
+            panel.style.visibility = visibilidad;
+            cortina.style.visibility = visibilidad;
 
             // Sincroniza el desplazamiento horizontal con el visor
             panel.scrollLeft = visor.scrollLeft;
