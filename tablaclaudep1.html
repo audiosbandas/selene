@@ -1,5 +1,5 @@
 tablaclaudep1.html
-prueba 4
+prueba 5
 
 
 <!DOCTYPE html>
@@ -235,6 +235,7 @@ prueba 4
             width: calc(100% - 30px);
             overflow: hidden;
             background-color: #ffffff;
+            box-shadow: 0 6px 6px -5px rgba(15, 23, 42, 0.45); /* solo se nota abajo */
             visibility: hidden;
             pointer-events: none; /* los toques pasan al contenido: el desplazamiento no se interrumpe */
             z-index: 9999990;     /* por debajo de la barra flotante (9999999) */
@@ -387,10 +388,13 @@ prueba 4
             });
         }
 
-        // Muestra/oculta el panel fijo y lo mantiene alineado con el visor
+        // Muestra/oculta el panel fijo y lo mantiene alineado con el visor.
+        // Todas las posiciones se toman de elementos que NO están dentro del contenido con zoom
+        // (barra y visor), para que el cálculo sea idéntico con cualquier zoom o dispositivo.
         function actualizarFilasCongeladas() {
             const panel = document.getElementById("filas-fijas");
-            if (!panel || !_filasCongeladas.length) return;
+            const cortina = document.getElementById("cortina-fija");
+            if (!panel || !cortina || !_filasCongeladas.length) return;
 
             const visor = document.getElementById("visor-tabla");
             const barra = document.getElementById("barra-flotante");
@@ -398,26 +402,19 @@ prueba 4
             // Opción B: el panel queda justo debajo de la barra flotante
             const topFijo = barra ? barra.getBoundingClientRect().bottom + 2 : 0;
 
-            // Posición y alto reales (sin desplazar) de las filas inmovilizadas
-            const rPrimera = _filasCongeladas[0].getBoundingClientRect();
-            const rUltima = _filasCongeladas[_filasCongeladas.length - 1].getBoundingClientRect();
-            const topNatural = rPrimera.top;
-            const altoReal = Math.ceil(rUltima.bottom - rPrimera.top);
-
+            // La tabla empieza en el borde superior del visor: ahí está la primera fila real
             const r = visor.getBoundingClientRect();
-            const cortina = document.getElementById("cortina-fija");
+            const topNatural = r.top;
 
-            // El panel mide exactamente lo mismo que las 3 filas reales (con el zoom actual),
-            // así las tapa por completo mientras éstas pasan por debajo
             panel.style.left = r.left + "px";
             panel.style.width = r.width + "px";
             panel.style.top = topFijo + "px";
-            panel.style.height = altoReal + "px";
+            panel.style.height = ""; // alto automático: el mismo que las 3 filas copiadas, con el mismo zoom
 
             // La cortina cubre desde el borde superior de la pantalla hasta el panel
             cortina.style.height = topFijo + "px";
 
-            // Mientras las filas reales se ven en su lugar no hace falta el panel ni la cortina
+            // El panel aparece justo cuando la primera fila real llega a su posición (empalme exacto)
             const visibilidad = (topNatural < topFijo) ? "visible" : "hidden";
             panel.style.visibility = visibilidad;
             cortina.style.visibility = visibilidad;
@@ -435,7 +432,7 @@ prueba 4
             });
         }
 
-        window.addEventListener('scroll', programarActualizacionCongeladas, { passive: true });
+        window.addEventListener('scroll', actualizarFilasCongeladas, { passive: true });
         // El scroll horizontal del visor se copia al panel fijo de inmediato (sin esperar al siguiente cuadro)
         document.getElementById("visor-tabla").addEventListener('scroll', () => {
             const panel = document.getElementById("filas-fijas");
