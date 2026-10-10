@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 4   (MARGARITA.html) ; ;
+prueba 1   (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -88,6 +88,31 @@ prueba 4   (MARGARITA.html) ; ;
         }
         .btn-exportar:hover:not(:disabled) {
             background-color: #047857;
+        }
+
+        /* Menú desplegable de Exportar */
+        .menu-exportar {
+            position: relative;
+        }
+        .opciones-exportar {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            flex-direction: column;
+            gap: 6px;
+            background-color: #ffffff;
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            z-index: 10;
+        }
+        .opciones-exportar.abierto {
+            display: flex;
+        }
+        .opciones-exportar .btn-nav {
+            text-align: left;
         }
 
         .indicador-bloque {
@@ -200,7 +225,13 @@ prueba 4   (MARGARITA.html) ; ;
         <button id="btn-prev" class="btn-nav" onclick="cambiarBloque(-1)">◄ Anterior</button>
         <span id="indicador-bloque" class="indicador-bloque">Cargando...</span>
         <button id="btn-next" class="btn-nav" onclick="cambiarBloque(1)">Siguiente ►</button>
-        <button id="btn-exportar" class="btn-nav btn-exportar" onclick="exportarDocx()" disabled>⭳ Exportar</button>
+        <div class="menu-exportar">
+            <button id="btn-exportar" class="btn-nav btn-exportar" onclick="alternarMenuExportar(event)" disabled>⭳ Exportar ▾</button>
+            <div id="opciones-exportar" class="opciones-exportar">
+                <button class="btn-nav btn-exportar" onclick="exportarDocx('grados')">⭳ GRADOS (Cols 1-17)</button>
+                <button class="btn-nav btn-exportar" onclick="exportarDocx('acordes')">⭳ ACORDES (Cols 19-35)</button>
+            </div>
+        </div>
     </div>
 
     <h2>Mis Datos en Tiempo Real</h2>
@@ -572,16 +603,34 @@ prueba 4   (MARGARITA.html) ; ;
             return `<div class="celda"><span style="max-width:${maxAncho}px">${escaparHTML(texto)}</span></div>`;
         }
 
-        // --- 5. EXPORTAR A .DOCX (A4 vertical, márgenes estrechos, desde la columna 19) ---
-        const EXP_COL_INICIO = 19;            // primera columna exportada (numeración 1-based)
+        // --- 5. EXPORTAR A .DOCX (A4 vertical, márgenes estrechos) ---
+        // Cada opción del menú Exportar tiene su propia configuración:
+        //   colInicio: primera columna exportada (numeración 1-based)
+        //   texto:     texto que debe entrar en UNA línea dentro de una celda (define el tamaño de letra)
+        //   prefijo:   nombre del archivo (se le agrega _AAAA-MM-DD.docx)
+        const EXP_OPCIONES = {
+            grados:  { colInicio: 1,  texto: "IVaum",  prefijo: "ExportGRADOS" },
+            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES" }
+        };
         const EXP_CANT_COLS = 17;             // cantidad de columnas del documento (todas de igual ancho)
-        const EXP_TEXTO_REFERENCIA = "C# dim"; // texto que debe entrar en UNA línea dentro de una celda
         const EXP_PAGINA_ANCHO = 11906;       // A4 vertical, en twips (1 pt = 20 twips)
         const EXP_PAGINA_ALTO = 16838;
         const EXP_MARGEN = 720;               // 0,5" = margen "Estrecho" de Word
         const EXP_PADDING_CELDA = 30;         // relleno izquierdo/derecho de cada celda (twips)
         const EXP_FUENTE = "Arial";
         const EXP_SEGURIDAD = 0.96;           // pequeño margen de seguridad en la medición del texto
+
+        // Menú desplegable del botón Exportar
+        function alternarMenuExportar(e) {
+            if (e) e.stopPropagation();
+            document.getElementById("opciones-exportar").classList.toggle("abierto");
+        }
+        function cerrarMenuExportar() {
+            document.getElementById("opciones-exportar").classList.remove("abierto");
+        }
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".menu-exportar")) cerrarMenuExportar();
+        });
 
         function escaparXML(t) {
             return String(t)
@@ -606,7 +655,12 @@ prueba 4   (MARGARITA.html) ; ;
             return t.trimEnd() + "…";
         }
 
-        function exportarDocx() {
+        function exportarDocx(tipo) {
+            cerrarMenuExportar();
+
+            const opcion = EXP_OPCIONES[tipo];
+            if (!opcion) { alert("Opción de exportación desconocida."); return; }
+
             const btn = document.getElementById("btn-exportar");
             try {
                 if (!datosFilas.length) { alert("Todavía no hay datos cargados para exportar."); return; }
@@ -618,15 +672,14 @@ prueba 4   (MARGARITA.html) ; ;
                 const anchoUtil = EXP_PAGINA_ANCHO - 2 * EXP_MARGEN;               // 10466 twips
                 const anchoCol = Math.floor(anchoUtil / EXP_CANT_COLS);            // 615 twips
                 const anchoTabla = anchoCol * EXP_CANT_COLS;
-                const anchoColPt = anchoCol / 20;
                 const anchoInteriorPt = (anchoCol - 2 * EXP_PADDING_CELDA) / 20;
 
-                // Tamaño de letra: el mayor (en pasos de 0,5 pt) con el que "C# dim" entra en una sola línea
-                const anchoRefPorPt = medirTextoPt(EXP_TEXTO_REFERENCIA, 1, false);
+                // Tamaño de letra: el mayor (en pasos de 0,5 pt) con el que el texto de referencia entra en una sola línea
+                const anchoRefPorPt = medirTextoPt(opcion.texto, 1, false);
                 const tamPt = Math.max(1, Math.floor((anchoInteriorPt / anchoRefPorPt) * EXP_SEGURIDAD * 2) / 2);
                 const sz = Math.round(tamPt * 2); // medio-puntos para Word
 
-                const iniIdx = EXP_COL_INICIO - 1;
+                const iniIdx = opcion.colInicio - 1;
 
                 const rPr = (negrita) =>
                     `<w:rPr><w:rFonts w:ascii="${EXP_FUENTE}" w:hAnsi="${EXP_FUENTE}" w:cs="${EXP_FUENTE}"/>${negrita ? "<w:b/>" : ""}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr>`;
@@ -702,7 +755,7 @@ prueba 4   (MARGARITA.html) ; ;
                 }).then((blob) => {
                     const hoy = new Date();
                     const pad = (n) => String(n).padStart(2, "0");
-                    const nombre = `Exportacion_${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}.docx`;
+                    const nombre = `${opcion.prefijo}_${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}.docx`;
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
