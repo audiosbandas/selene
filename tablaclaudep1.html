@@ -1,5 +1,5 @@
 tablaclaudep1.html
-prueba 5
+prueba 6
 
 
 <!DOCTYPE html>
@@ -245,7 +245,9 @@ prueba 5
             width: max-content;
             transform-origin: top left;
         }
-        #tabla-fijas { visibility: visible; box-shadow: none; border-radius: 0; }
+        /* La tabla copiada hereda la visibilidad del panel (antes la forzaba a "visible" y por eso
+           se veía siempre, aun con el panel oculto) */
+        #tabla-fijas { visibility: inherit; box-shadow: none; border-radius: 0; }
 
         /* Cortina: tapa todo lo que queda por encima del panel fijo (a la izquierda de la barra
            y entre la barra y el panel), para que no se vea la tabla pasando por detrás */
