@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 2   (MARGARITA.html) ; ;
+prueba 3       (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -822,7 +822,8 @@ prueba 2   (MARGARITA.html) ; ;
                             return `<w:tc>${tcPr}<w:p>${pPr(esEncabezado, true)}<w:r>${rPr(esEncabezado)}<w:t xml:space="preserve">${escaparXML(t)}</w:t></w:r></w:p></w:tc>`;
                         };
 
-                        xml += celdaCentrada(0, 1, valores[0]);
+                        // La marca "-" activa las reglas de la fila pero no se muestra en el documento
+                        xml += celdaCentrada(0, 1, valores[0].split(EXP_DIVISORIA_MARCA).join("").trim());
                         for (const ini of EXP_BLOQUES_CENTRADOS) {
                             const conTexto = [];
                             for (let k = 0; k < 4; k++) if (valores[ini + k] !== "") conTexto.push(k);
