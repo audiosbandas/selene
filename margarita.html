@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 1   (MARGARITA.html) ; ;
+prueba 2   (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -717,6 +717,11 @@ prueba 1   (MARGARITA.html) ; ;
         const EXP_DIVISORIA_SZ = 12;          // grosor de la divisoria en octavos de punto (12 = 1,5 pt, intermedio)
         const EXP_DIVISORIA_COLOR = "000000"; // color de la divisoria (negro)
         const EXP_DIVISORIA_MARCA = "-";      // carácter que, presente en la Columna 1 de la fila, activa las divisorias
+        // Filas con "-" en la Columna 1: todo el contenido va centrado, y cada bloque de 4 celdas se combina así:
+        //   solo celda 1 con contenido -> combina y centra sobre las 4 celdas
+        //   solo celdas 1 y 3          -> combina y centra la 1 sobre las celdas 1-2 y la 3 sobre las celdas 3-4
+        //   cualquier otra combinación -> cada celda queda sola, con su contenido centrado
+        const EXP_BLOQUES_CENTRADOS = [1, 5, 9, 13]; // primera celda de cada bloque de 4 (índice 0-based: cols 2-5, 6-9, 10-13, 14-17)
 
         // Menú desplegable del botón Exportar
         function alternarMenuExportar(e) {
@@ -786,8 +791,8 @@ prueba 1   (MARGARITA.html) ; ;
 
                 const rPr = (negrita) =>
                     `<w:rPr><w:rFonts w:ascii="${EXP_FUENTE}" w:hAnsi="${EXP_FUENTE}" w:cs="${EXP_FUENTE}"/>${negrita ? "<w:b/>" : ""}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr>`;
-                const pPr = (negrita) =>
-                    `<w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="left"/>${rPr(negrita)}</w:pPr>`;
+                const pPr = (negrita, centrado) =>
+                    `<w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="${centrado ? "center" : "left"}"/>${rPr(negrita)}</w:pPr>`;
 
                 const celdaVacia = (negrita, conBorde) =>
                     `<w:tc><w:tcPr><w:tcW w:w="${anchoCol}" w:type="dxa"/>${conBorde ? bordeDivisoria : ""}</w:tcPr><w:p>${pPr(negrita)}</w:p></w:tc>`;
@@ -804,7 +809,35 @@ prueba 1   (MARGARITA.html) ; ;
                     const esDivisoria = (c) => filaConDivisorias && colsDivisoria.indexOf(c) !== -1;
 
                     let xml = `<w:tr><w:trPr><w:cantSplit/></w:trPr>`;
-                    let c = 0;
+                    // Filas con "-" en la Columna 1: contenido centrado y combinación por bloques de 4 celdas
+                    if (filaConDivisorias) {
+                        const celdaCentrada = (desde, span, texto) => {
+                            const tcPr = `<w:tcPr><w:tcW w:w="${anchoCol * span}" w:type="dxa"/>`
+                                + (span > 1 ? `<w:gridSpan w:val="${span}"/>` : "")
+                                + (esDivisoria(desde + span - 1) ? bordeDivisoria : "")
+                                + `<w:noWrap/></w:tcPr>`;
+                            if (texto === "") return `<w:tc>${tcPr}<w:p>${pPr(esEncabezado, true)}</w:p></w:tc>`;
+                            const anchoDispPt = (anchoCol * span - EXP_PADDING_IZQ - EXP_PADDING_DER) / 20 * EXP_SEGURIDAD;
+                            const t = ajustarTextoAlAncho(texto.replace(/\s+/g, " "), anchoDispPt, tamPt, esEncabezado);
+                            return `<w:tc>${tcPr}<w:p>${pPr(esEncabezado, true)}<w:r>${rPr(esEncabezado)}<w:t xml:space="preserve">${escaparXML(t)}</w:t></w:r></w:p></w:tc>`;
+                        };
+
+                        xml += celdaCentrada(0, 1, valores[0]);
+                        for (const ini of EXP_BLOQUES_CENTRADOS) {
+                            const conTexto = [];
+                            for (let k = 0; k < 4; k++) if (valores[ini + k] !== "") conTexto.push(k);
+
+                            if (conTexto.length === 1 && conTexto[0] === 0) {
+                                xml += celdaCentrada(ini, 4, valores[ini]);
+                            } else if (conTexto.length === 2 && conTexto[0] === 0 && conTexto[1] === 2) {
+                                xml += celdaCentrada(ini, 2, valores[ini]) + celdaCentrada(ini + 2, 2, valores[ini + 2]);
+                            } else {
+                                for (let k = 0; k < 4; k++) xml += celdaCentrada(ini + k, 1, valores[ini + k]);
+                            }
+                        }
+                    }
+
+                    let c = filaConDivisorias ? EXP_CANT_COLS : 0; // en filas con "-" las celdas ya se armaron arriba
                     while (c < EXP_CANT_COLS) {
                         const val = valores[c];
                         if (val === "") { xml += celdaVacia(esEncabezado, esDivisoria(c)); c++; continue; }
