@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 4       (MARGARITA.html) ; ;
+prueba 5       (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -717,6 +717,11 @@ prueba 4       (MARGARITA.html) ; ;
         const EXP_SEGURIDAD = 0.96;           // pequeño margen de seguridad en la medición del texto
         const EXP_DIVISORIA_SZ = 12;          // grosor de la divisoria en octavos de punto (12 = 1,5 pt, intermedio)
         const EXP_DIVISORIA_COLOR = "000000"; // color de la divisoria (negro)
+        // Google Docs agrega siempre un párrafo editable arriba de una tabla que abre el documento. Para que ese
+        // párrafo ocupe lo mínimo (1 pt, sin espaciado) y el encabezado quede casi pegado al margen superior,
+        // se inserta un párrafo propio de ese tamaño antes de la tabla. Poner false para volver a no tener párrafo previo.
+        const EXP_PARRAFO_MINIMO_INICIAL = true;
+        const EXP_PARRAFO_MINIMO_XML = `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
         const EXP_DIVISORIA_MARCA = "-";      // carácter que, presente en la Columna 1 de la fila, activa las divisorias
         // Filas con "-" en la Columna 1: todo el contenido va centrado, y cada bloque de 4 celdas se combina así:
         //   solo celda 1 con contenido -> combina y centra sobre las 4 celdas
@@ -876,6 +881,7 @@ prueba 4       (MARGARITA.html) ; ;
                 const documentoXML =
 `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`
++ (EXP_PARRAFO_MINIMO_INICIAL ? EXP_PARRAFO_MINIMO_XML : "")
 + `<w:tbl><w:tblPr><w:tblW w:w="${anchoTabla}" w:type="dxa"/><w:tblInd w:w="0" w:type="dxa"/>`
 + `<w:tblBorders>${borde}</w:tblBorders><w:tblLayout w:type="fixed"/>`
 + `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="${EXP_PADDING_IZQ}" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="${EXP_PADDING_DER}" w:type="dxa"/></w:tblCellMar></w:tblPr>`
