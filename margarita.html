@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 5   (MARGARITA.html) ; ;
+prueba 1   (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -700,9 +700,11 @@ prueba 5   (MARGARITA.html) ; ;
         //   texto:     texto que debe entrar en UNA línea dentro de una celda (define el tamaño de letra)
         //   prefijo:   nombre del archivo .docx (se le agrega _AAAA-MM-DD.docx)
         //   prefijoPdf: nombre del archivo .pdf (se le agrega _AAAA-MM-DD.pdf)
+        //   divisorias: (solo .docx) columnas del documento (1-17) cuyo borde derecho se destaca
+        //               en las filas cuya Columna 1 contiene el carácter "-"
         const EXP_OPCIONES = {
             grados:  { colInicio: 1,  texto: "IVaum",  prefijo: "ExportGRADOS",  prefijoPdf: "PDF_GRADOS" },
-            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES" }
+            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES", divisorias: [5, 9, 13] }
         };
         const EXP_CANT_COLS = 17;             // cantidad de columnas del documento (todas de igual ancho)
         const EXP_PAGINA_ANCHO = 11906;       // A4 vertical, en twips (1 pt = 20 twips)
@@ -712,6 +714,9 @@ prueba 5   (MARGARITA.html) ; ;
         const EXP_PADDING_DER = 0;            // relleno a la derecha del texto en cada celda del .docx (twips)
         const EXP_FUENTE = "Arial";
         const EXP_SEGURIDAD = 0.96;           // pequeño margen de seguridad en la medición del texto
+        const EXP_DIVISORIA_SZ = 12;          // grosor de la divisoria en octavos de punto (12 = 1,5 pt, intermedio)
+        const EXP_DIVISORIA_COLOR = "000000"; // color de la divisoria (negro)
+        const EXP_DIVISORIA_MARCA = "-";      // carácter que, presente en la Columna 1 de la fila, activa las divisorias
 
         // Menú desplegable del botón Exportar
         function alternarMenuExportar(e) {
@@ -774,13 +779,18 @@ prueba 5   (MARGARITA.html) ; ;
 
                 const iniIdx = opcion.colInicio - 1;
 
+                // Divisorias: índices (0-based) de las columnas con borde derecho destacado
+                const colsDivisoria = (opcion.divisorias || []).map((n) => n - 1);
+                const bordeDivisoria =
+                    `<w:tcBorders><w:right w:val="single" w:sz="${EXP_DIVISORIA_SZ}" w:space="0" w:color="${EXP_DIVISORIA_COLOR}"/></w:tcBorders>`;
+
                 const rPr = (negrita) =>
                     `<w:rPr><w:rFonts w:ascii="${EXP_FUENTE}" w:hAnsi="${EXP_FUENTE}" w:cs="${EXP_FUENTE}"/>${negrita ? "<w:b/>" : ""}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr>`;
                 const pPr = (negrita) =>
                     `<w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="left"/>${rPr(negrita)}</w:pPr>`;
 
-                const celdaVacia = (negrita) =>
-                    `<w:tc><w:tcPr><w:tcW w:w="${anchoCol}" w:type="dxa"/></w:tcPr><w:p>${pPr(negrita)}</w:p></w:tc>`;
+                const celdaVacia = (negrita, conBorde) =>
+                    `<w:tc><w:tcPr><w:tcW w:w="${anchoCol}" w:type="dxa"/>${conBorde ? bordeDivisoria : ""}</w:tcPr><w:p>${pPr(negrita)}</w:p></w:tc>`;
 
                 let filasXML = "";
                 for (let f = 0; f < datosFilas.length; f++) {
@@ -789,15 +799,20 @@ prueba 5   (MARGARITA.html) ; ;
                     const valores = [];
                     for (let c = 0; c < EXP_CANT_COLS; c++) valores.push((fila[iniIdx + c] || "").toString());
 
+                    // La fila lleva divisorias solo si la Columna 1 del documento contiene el carácter "-"
+                    const filaConDivisorias = colsDivisoria.length > 0 && valores[0].indexOf(EXP_DIVISORIA_MARCA) !== -1;
+                    const esDivisoria = (c) => filaConDivisorias && colsDivisoria.indexOf(c) !== -1;
+
                     let xml = `<w:tr><w:trPr><w:cantSplit/></w:trPr>`;
                     let c = 0;
                     while (c < EXP_CANT_COLS) {
                         const val = valores[c];
-                        if (val === "") { xml += celdaVacia(esEncabezado); c++; continue; }
+                        if (val === "") { xml += celdaVacia(esEncabezado, esDivisoria(c)); c++; continue; }
 
-                        // El texto desborda hacia la derecha: se une con las celdas vecinas vacías
+                        // El texto desborda hacia la derecha: se une con las celdas vecinas vacías,
+                        // pero la unión se corta en una columna con divisoria para que la línea siempre se vea
                         let span = 1;
-                        while (c + span < EXP_CANT_COLS && valores[c + span] === "") span++;
+                        while (c + span < EXP_CANT_COLS && valores[c + span] === "" && !esDivisoria(c + span - 1)) span++;
 
                         const anchoCelda = anchoCol * span;
                         const anchoDispPt = (anchoCelda - EXP_PADDING_IZQ - EXP_PADDING_DER) / 20 * EXP_SEGURIDAD;
@@ -805,6 +820,7 @@ prueba 5   (MARGARITA.html) ; ;
 
                         xml += `<w:tc><w:tcPr><w:tcW w:w="${anchoCelda}" w:type="dxa"/>`
                             + (span > 1 ? `<w:gridSpan w:val="${span}"/>` : "")
+                            + (esDivisoria(c + span - 1) ? bordeDivisoria : "")
                             + `<w:noWrap/></w:tcPr>`
                             + `<w:p>${pPr(esEncabezado)}<w:r>${rPr(esEncabezado)}<w:t xml:space="preserve">${escaparXML(texto)}</w:t></w:r></w:p></w:tc>`;
                         c += span;
@@ -874,8 +890,8 @@ prueba 5   (MARGARITA.html) ; ;
         const PDF_PAGINA_ALTO = 841.89;
         const PDF_MARGEN = 36;                // 0,5" = margen "Estrecho"
         // Antes: PDF_PADDING_CELDA = 1.5 (igual a ambos lados). Para volver a la versión anterior: PDF_PAD_IZQ = 1.5 y PDF_PAD_DER = 1.5
-const PDF_PAD_IZQ = 0.5;              // relleno izquierdo de cada celda (pt)
-const PDF_PAD_DER = 0;                // relleno derecho de cada celda (pt)
+        const PDF_PAD_IZQ = 0.5;              // relleno izquierdo de cada celda (pt)
+        const PDF_PAD_DER = 0;                // relleno derecho de cada celda (pt)
         const PDF_INTERLINEADO = 1.3;         // alto de fila = tamaño de letra x este factor
         const PDF_SEGURIDAD = 0.96;
 
