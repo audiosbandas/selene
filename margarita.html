@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 3       (MARGARITA.html) ; ;
+prueba 4       (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -702,9 +702,10 @@ prueba 3       (MARGARITA.html) ; ;
         //   prefijoPdf: nombre del archivo .pdf (se le agrega _AAAA-MM-DD.pdf)
         //   divisorias: (solo .docx) columnas del documento (1-17) cuyo borde derecho se destaca
         //               en las filas cuya Columna 1 contiene el carácter "-"
+        //   filaNuevaTrasEncabezado: (solo .docx) inserta una fila en blanco entre el encabezado (Fila 1) y la actual Fila 2
         const EXP_OPCIONES = {
             grados:  { colInicio: 1,  texto: "IVaum",  prefijo: "ExportGRADOS",  prefijoPdf: "PDF_GRADOS" },
-            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES", divisorias: [5, 9, 13] }
+            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES", divisorias: [5, 9, 13], filaNuevaTrasEncabezado: true }
         };
         const EXP_CANT_COLS = 17;             // cantidad de columnas del documento (todas de igual ancho)
         const EXP_PAGINA_ANCHO = 11906;       // A4 vertical, en twips (1 pt = 20 twips)
@@ -797,6 +798,11 @@ prueba 3       (MARGARITA.html) ; ;
                 const celdaVacia = (negrita, conBorde) =>
                     `<w:tc><w:tcPr><w:tcW w:w="${anchoCol}" w:type="dxa"/>${conBorde ? bordeDivisoria : ""}</w:tcPr><w:p>${pPr(negrita)}</w:p></w:tc>`;
 
+                // Fila nueva (en blanco) que se inserta debajo del encabezado: pasa a ser la Fila 2 del documento
+                let filaNuevaXML = `<w:tr><w:trPr><w:cantSplit/></w:trPr>`;
+                for (let k = 0; k < EXP_CANT_COLS; k++) filaNuevaXML += celdaVacia(false, false);
+                filaNuevaXML += `</w:tr>`;
+
                 let filasXML = "";
                 for (let f = 0; f < datosFilas.length; f++) {
                     const fila = datosFilas[f];
@@ -861,6 +867,7 @@ prueba 3       (MARGARITA.html) ; ;
                     }
                     xml += `</w:tr>`;
                     filasXML += xml;
+                    if (f === 0 && opcion.filaNuevaTrasEncabezado) filasXML += filaNuevaXML;
                 }
 
                 const grilla = Array.from({ length: EXP_CANT_COLS }, () => `<w:gridCol w:w="${anchoCol}"/>`).join("");
