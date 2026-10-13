@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 1       (MARGARITA.html) ; ;
+prueba 2       (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -733,17 +733,28 @@ prueba 1       (MARGARITA.html) ; ;
         // Si después de una fila con datos hay al menos EXP_MIN_FILAS_VACIAS filas seguidas sin contenido en las
         // primeras EXP_COLS_REVISADAS columnas de la planilla, y luego aparece una fila con datos (fila S):
         //   - S y todas las filas siguientes pasan a la página siguiente.
-        //   - En la página anterior, la 5ta fila vacía imprime una copia de S, y la fila inmediata debajo
+        //   - En la página anterior, la 4ta fila vacía imprime una copia de S, y la fila inmediata debajo (5ta)
         //     muestra, desde la columna 2 del documento, la leyenda EXP_TEXTO_CONTINUA.
+        //   - Excepción: si la copia de S entra en la página pero la leyenda caería en la página siguiente,
+        //     la leyenda ocupa la 4ta fila vacía y NO se imprime la copia de S.
+        //   - Las filas vacías restantes del bloque (después de la leyenda) se omiten: la página siguiente empieza en S.
+        // Para saber dónde cae cada fila se simula la paginación (exacta en el .pdf; estimada en el .docx).
         const EXP_COLS_REVISADAS = 10;
         const EXP_MIN_FILAS_VACIAS = 5;
         const EXP_TEXTO_CONTINUA = "Continúa en la próxima página…";
+        // Estimación de la altura de fila en el .docx (Word/Google Docs decide la paginación real; ajustar si hace falta)
+        const EXP_DOCX_FACTOR_LINEA = 1.149;  // alto de línea simple de Arial = tamaño de letra x este factor
+        const EXP_DOCX_BORDE_FILA_PT = 0.5;   // borde inferior de cada fila (pt)
+        const EXP_DOCX_ALTO_PARRAFO_MIN = 1.2; // párrafo mínimo inicial antes de la tabla (pt)
         // Párrafo de 1 pt con salto de página (separa dos tablas idénticas en el .docx)
         const EXP_SALTO_PAGINA_XML = `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr><w:r><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr><w:br w:type="page"/></w:r></w:p>`;
 
         // Devuelve la lista de filas a exportar ({fila, encabezado, saltoAntes}) ya con los saltos de página,
         // las copias de la fila trasladada y las leyendas. iniIdx = índice (0-based) de la primera columna exportada.
-        function prepararFilasExportacion(iniIdx) {
+        // geo = { alto, yPrimera, yInicio, yMax, filaExtraTrasEncabezado } (en pt) para simular la paginación:
+        //   alto: alto de cada fila; yPrimera: posición vertical inicial en la 1ra página; yInicio: posición inicial
+        //   en las páginas siguientes; yMax: límite inferior de la página.
+        function prepararFilasExportacion(iniIdx, geo) {
             const n = datosFilas.length;
             const vacia = (fila) => {
                 for (let c = 0; c < EXP_COLS_REVISADAS; c++) {
@@ -759,9 +770,21 @@ prueba 1       (MARGARITA.html) ; ;
             };
 
             const res = [];
+            let y = geo.yPrimera;
+            const avanzar = () => {
+                if (y + geo.alto > geo.yMax) y = geo.yInicio; // la fila pasa a una página nueva
+                y += geo.alto;
+            };
+            const cabe = (yy) => yy + geo.alto <= geo.yMax;
+            const agregar = (it) => {
+                avanzar();
+                res.push(it);
+                if (it.encabezado && geo.filaExtraTrasEncabezado) avanzar(); // fila en blanco insertada tras el encabezado
+            };
+
             let i = 0;
             while (i < n) {
-                if (!vacia(datosFilas[i])) { res.push(item(i)); i++; continue; }
+                if (!vacia(datosFilas[i])) { agregar(item(i)); i++; continue; }
 
                 // Tramo de filas vacías: [i, fin)
                 let fin = i;
@@ -769,27 +792,29 @@ prueba 1       (MARGARITA.html) ; ;
                 const largo = fin - i;
 
                 if (i > 0 && largo >= EXP_MIN_FILAS_VACIAS && fin < n) {
-                    for (let k = 0; k < largo; k++) {
-                        if (k === EXP_MIN_FILAS_VACIAS - 1) {
-                            // 5ta fila vacía: se imprime la primera fila que pasa a la página siguiente
-                            res.push({ fila: datosFilas[fin], encabezado: false, saltoAntes: false });
-                        } else if (k === EXP_MIN_FILAS_VACIAS) {
-                            // fila inmediata debajo: leyenda
-                            res.push({ fila: filaLeyenda(), encabezado: false, saltoAntes: false });
-                        } else {
-                            res.push(item(i + k));
-                        }
+                    // Las 3 primeras filas vacías quedan como están
+                    for (let k = 0; k < EXP_MIN_FILAS_VACIAS - 2; k++) agregar(item(i + k));
+
+                    // ¿Entran la copia (4ta fila) y la leyenda (5ta fila) en la página actual?
+                    const copiaCabe = cabe(y);
+                    const leyendaCabe = cabe(y + geo.alto);
+
+                    if (copiaCabe && !leyendaCabe) {
+                        // Solo la leyenda caería en la página siguiente: la leyenda ocupa la 4ta fila y no se copia S
+                        agregar({ fila: filaLeyenda(), encabezado: false, saltoAntes: false });
+                    } else {
+                        agregar({ fila: datosFilas[fin], encabezado: false, saltoAntes: false }); // copia de S en la 4ta fila
+                        agregar({ fila: filaLeyenda(), encabezado: false, saltoAntes: false });   // leyenda en la 5ta fila
                     }
-                    if (largo === EXP_MIN_FILAS_VACIAS) {
-                        res.push({ fila: filaLeyenda(), encabezado: false, saltoAntes: false });
-                    }
+
                     // La fila con datos abre la página siguiente
+                    y = geo.yInicio;
                     const it = item(fin);
                     it.saltoAntes = true;
-                    res.push(it);
+                    agregar(it);
                     i = fin + 1;
                 } else {
-                    for (let k = i; k < fin; k++) res.push(item(k));
+                    for (let k = i; k < fin; k++) agregar(item(k));
                     i = fin;
                 }
             }
@@ -856,7 +881,13 @@ prueba 1       (MARGARITA.html) ; ;
                 const sz = Math.round(tamPt * 2); // medio-puntos para Word
 
                 const iniIdx = opcion.colInicio - 1;
-                const itemsExp = prepararFilasExportacion(iniIdx);
+                const itemsExp = prepararFilasExportacion(iniIdx, {
+                    alto: tamPt * EXP_DOCX_FACTOR_LINEA + EXP_DOCX_BORDE_FILA_PT,
+                    yPrimera: EXP_PARRAFO_MINIMO_INICIAL ? EXP_DOCX_ALTO_PARRAFO_MIN : 0,
+                    yInicio: 0,
+                    yMax: (EXP_PAGINA_ALTO - 2 * EXP_MARGEN) / 20,
+                    filaExtraTrasEncabezado: !!opcion.filaNuevaTrasEncabezado
+                });
 
                 // Apertura de la tabla (se reutiliza tras cada salto de página)
                 const grilla = Array.from({ length: EXP_CANT_COLS }, () => `<w:gridCol w:w="${anchoCol}"/>`).join("");
@@ -1069,9 +1100,15 @@ prueba 1       (MARGARITA.html) ; ;
                 };
 
                 const iniIdx = opcion.colInicio - 1;
-                const itemsExp = prepararFilasExportacion(iniIdx);
                 const xIni = PDF_MARGEN;
                 const yMax = PDF_PAGINA_ALTO - PDF_MARGEN;
+                const itemsExp = prepararFilasExportacion(iniIdx, {
+                    alto: altoFila,
+                    yPrimera: PDF_MARGEN,
+                    yInicio: PDF_MARGEN,
+                    yMax: yMax,
+                    filaExtraTrasEncabezado: false
+                });
                 let y = PDF_MARGEN;
 
                 // Divisorias: índices (0-based) de las columnas con borde derecho destacado
