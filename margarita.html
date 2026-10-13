@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 8       (MARGARITA.html) ; ;
+prueba 1       (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -729,6 +729,73 @@ prueba 8       (MARGARITA.html) ; ;
         //   cualquier otra combinación -> cada celda queda sola, con su contenido centrado
         const EXP_BLOQUES_CENTRADOS = [1, 5, 9, 13]; // primera celda de cada bloque de 4 (índice 0-based: cols 2-5, 6-9, 10-13, 14-17)
 
+        // --- Salto de página tras bloques de filas vacías (.docx y .pdf) ---
+        // Si después de una fila con datos hay al menos EXP_MIN_FILAS_VACIAS filas seguidas sin contenido en las
+        // primeras EXP_COLS_REVISADAS columnas de la planilla, y luego aparece una fila con datos (fila S):
+        //   - S y todas las filas siguientes pasan a la página siguiente.
+        //   - En la página anterior, la 5ta fila vacía imprime una copia de S, y la fila inmediata debajo
+        //     muestra, desde la columna 2 del documento, la leyenda EXP_TEXTO_CONTINUA.
+        const EXP_COLS_REVISADAS = 10;
+        const EXP_MIN_FILAS_VACIAS = 5;
+        const EXP_TEXTO_CONTINUA = "Continúa en la próxima página…";
+        // Párrafo de 1 pt con salto de página (separa dos tablas idénticas en el .docx)
+        const EXP_SALTO_PAGINA_XML = `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr><w:r><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr><w:br w:type="page"/></w:r></w:p>`;
+
+        // Devuelve la lista de filas a exportar ({fila, encabezado, saltoAntes}) ya con los saltos de página,
+        // las copias de la fila trasladada y las leyendas. iniIdx = índice (0-based) de la primera columna exportada.
+        function prepararFilasExportacion(iniIdx) {
+            const n = datosFilas.length;
+            const vacia = (fila) => {
+                for (let c = 0; c < EXP_COLS_REVISADAS; c++) {
+                    if (fila[c] && String(fila[c]).trim() !== "") return false;
+                }
+                return true;
+            };
+            const item = (i) => ({ fila: datosFilas[i], encabezado: i === 0, saltoAntes: false });
+            const filaLeyenda = () => {
+                const f = new Array(iniIdx + EXP_CANT_COLS).fill("");
+                f[iniIdx + 1] = EXP_TEXTO_CONTINUA; // columna 2 del documento
+                return f;
+            };
+
+            const res = [];
+            let i = 0;
+            while (i < n) {
+                if (!vacia(datosFilas[i])) { res.push(item(i)); i++; continue; }
+
+                // Tramo de filas vacías: [i, fin)
+                let fin = i;
+                while (fin < n && vacia(datosFilas[fin])) fin++;
+                const largo = fin - i;
+
+                if (i > 0 && largo >= EXP_MIN_FILAS_VACIAS && fin < n) {
+                    for (let k = 0; k < largo; k++) {
+                        if (k === EXP_MIN_FILAS_VACIAS - 1) {
+                            // 5ta fila vacía: se imprime la primera fila que pasa a la página siguiente
+                            res.push({ fila: datosFilas[fin], encabezado: false, saltoAntes: false });
+                        } else if (k === EXP_MIN_FILAS_VACIAS) {
+                            // fila inmediata debajo: leyenda
+                            res.push({ fila: filaLeyenda(), encabezado: false, saltoAntes: false });
+                        } else {
+                            res.push(item(i + k));
+                        }
+                    }
+                    if (largo === EXP_MIN_FILAS_VACIAS) {
+                        res.push({ fila: filaLeyenda(), encabezado: false, saltoAntes: false });
+                    }
+                    // La fila con datos abre la página siguiente
+                    const it = item(fin);
+                    it.saltoAntes = true;
+                    res.push(it);
+                    i = fin + 1;
+                } else {
+                    for (let k = i; k < fin; k++) res.push(item(k));
+                    i = fin;
+                }
+            }
+            return res;
+        }
+
         // Menú desplegable del botón Exportar
         function alternarMenuExportar(e) {
             if (e) e.stopPropagation();
@@ -789,6 +856,15 @@ prueba 8       (MARGARITA.html) ; ;
                 const sz = Math.round(tamPt * 2); // medio-puntos para Word
 
                 const iniIdx = opcion.colInicio - 1;
+                const itemsExp = prepararFilasExportacion(iniIdx);
+
+                // Apertura de la tabla (se reutiliza tras cada salto de página)
+                const grilla = Array.from({ length: EXP_CANT_COLS }, () => `<w:gridCol w:w="${anchoCol}"/>`).join("");
+                const borde = `<w:bottom w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>`;
+                const tablaInicioXML = `<w:tbl><w:tblPr><w:tblW w:w="${anchoTabla}" w:type="dxa"/><w:tblInd w:w="0" w:type="dxa"/>`
+                    + `<w:tblBorders>${borde}</w:tblBorders><w:tblLayout w:type="fixed"/>`
+                    + `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="${EXP_PADDING_IZQ}" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="${EXP_PADDING_DER}" w:type="dxa"/></w:tblCellMar></w:tblPr>`
+                    + `<w:tblGrid>${grilla}</w:tblGrid>`;
 
                 // Divisorias: índices (0-based) de las columnas con borde derecho destacado
                 const colsDivisoria = (opcion.divisorias || []).map((n) => n - 1);
@@ -809,9 +885,14 @@ prueba 8       (MARGARITA.html) ; ;
                 filaNuevaXML += `</w:tr>`;
 
                 let filasXML = "";
-                for (let f = 0; f < datosFilas.length; f++) {
-                    const fila = datosFilas[f];
-                    const esEncabezado = (f === 0);
+                for (let f = 0; f < itemsExp.length; f++) {
+                    const itemFila = itemsExp[f];
+                    const fila = itemFila.fila;
+                    const esEncabezado = itemFila.encabezado;
+
+                    // Salto de página: se cierra la tabla, se inserta el salto y se abre otra tabla idéntica
+                    if (itemFila.saltoAntes) filasXML += `</w:tbl>` + EXP_SALTO_PAGINA_XML + tablaInicioXML;
+
                     const valores = [];
                     for (let c = 0; c < EXP_CANT_COLS; c++) valores.push((fila[iniIdx + c] || "").toString());
 
@@ -872,20 +953,14 @@ prueba 8       (MARGARITA.html) ; ;
                     }
                     xml += `</w:tr>`;
                     filasXML += xml;
-                    if (f === 0 && opcion.filaNuevaTrasEncabezado) filasXML += filaNuevaXML;
+                    if (itemFila.encabezado && opcion.filaNuevaTrasEncabezado) filasXML += filaNuevaXML;
                 }
-
-                const grilla = Array.from({ length: EXP_CANT_COLS }, () => `<w:gridCol w:w="${anchoCol}"/>`).join("");
-                const borde = `<w:bottom w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>`;
 
                 const documentoXML =
 `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`
 + (EXP_PARRAFO_MINIMO_INICIAL ? EXP_PARRAFO_MINIMO_XML : "")
-+ `<w:tbl><w:tblPr><w:tblW w:w="${anchoTabla}" w:type="dxa"/><w:tblInd w:w="0" w:type="dxa"/>`
-+ `<w:tblBorders>${borde}</w:tblBorders><w:tblLayout w:type="fixed"/>`
-+ `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="${EXP_PADDING_IZQ}" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="${EXP_PADDING_DER}" w:type="dxa"/></w:tblCellMar></w:tblPr>`
-+ `<w:tblGrid>${grilla}</w:tblGrid>${filasXML}</w:tbl>`
++ tablaInicioXML + filasXML + `</w:tbl>`
 + `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`
 + `<w:sectPr><w:pgSz w:w="${EXP_PAGINA_ANCHO}" w:h="${EXP_PAGINA_ALTO}" w:orient="portrait"/>`
 + `<w:pgMar w:top="${EXP_MARGEN}" w:right="${EXP_MARGEN}" w:bottom="${EXP_MARGEN}" w:left="${EXP_MARGEN}" w:header="360" w:footer="360" w:gutter="0"/></w:sectPr>`
@@ -994,6 +1069,7 @@ prueba 8       (MARGARITA.html) ; ;
                 };
 
                 const iniIdx = opcion.colInicio - 1;
+                const itemsExp = prepararFilasExportacion(iniIdx);
                 const xIni = PDF_MARGEN;
                 const yMax = PDF_PAGINA_ALTO - PDF_MARGEN;
                 let y = PDF_MARGEN;
@@ -1008,9 +1084,17 @@ prueba 8       (MARGARITA.html) ; ;
                 };
                 estiloLineaNormal();
 
-                for (let f = 0; f < datosFilas.length; f++) {
-                    const fila = datosFilas[f];
-                    const esEncabezado = (f === 0);
+                for (let f = 0; f < itemsExp.length; f++) {
+                    const itemFila = itemsExp[f];
+                    const fila = itemFila.fila;
+                    const esEncabezado = itemFila.encabezado;
+
+                    // Salto de página forzado: la fila con datos tras el bloque de filas vacías abre una página nueva
+                    if (itemFila.saltoAntes) {
+                        doc.addPage();
+                        y = PDF_MARGEN;
+                        estiloLineaNormal();
+                    }
 
                     if (y + altoFila > yMax) {
                         doc.addPage();
