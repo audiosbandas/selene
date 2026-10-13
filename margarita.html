@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 6       (MARGARITA.html) ; ;
+prueba 7       (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -1044,6 +1044,44 @@ prueba 6       (MARGARITA.html) ; ;
                             doc.text(t, xIni + (desde + span / 2) * anchoCol, y + altoFila * 0.74, { align: "center" });
                         };
 
+                        // Caso "solo celdas 1 y 3" del bloque: el bloque se reparte en 5 celdas iguales; el texto de la
+                        // celda 1 se centra en la nueva celda 2 y el de la celda 3 en la nueva celda 4. Se mide la
+                        // distancia entre el fin del primer texto y el inicio del segundo, se convierte en espacios
+                        // enteros (mínimo 1) y toda la cadena "texto 2 + espacios + texto 4" se centra en el bloque.
+                        // Si no entra en el bloque se reducen los espacios y, en última instancia, se recortan los textos.
+                        const dibujarCadenaCentrada = (ini, texto2, texto4) => {
+                            const anchoBloque = anchoCol * 4;
+                            const anchoDisp = (anchoBloque - PDF_PAD_IZQ - PDF_PAD_DER) * PDF_SEGURIDAD;
+                            const anchoEsp = medir(" ", tamPt, esEncabezado);
+                            let t2 = texto2, t4 = texto4;
+                            let w2 = medir(t2, tamPt, esEncabezado);
+                            let w4 = medir(t4, tamPt, esEncabezado);
+
+                            // Si ni siquiera entran con un solo espacio, se recortan en proporción a su ancho
+                            const restante = anchoDisp - anchoEsp;
+                            if (w2 + w4 > restante) {
+                                const r2 = restante * w2 / (w2 + w4);
+                                t2 = recortar(t2, r2, esEncabezado);
+                                t4 = recortar(t4, restante - r2, esEncabezado);
+                                w2 = medir(t2, tamPt, esEncabezado);
+                                w4 = medir(t4, tamPt, esEncabezado);
+                            }
+
+                            // Distancia entre ambos textos, cada uno centrado en su nueva celda (2 y 4)
+                            const anchoCelNueva = anchoBloque / 5;
+                            const finTexto2 = 1.5 * anchoCelNueva + w2 / 2;
+                            const iniTexto4 = 3.5 * anchoCelNueva - w4 / 2;
+                            let nEsp = Math.max(1, Math.round((iniTexto4 - finTexto2) / anchoEsp));
+
+                            // Si la cadena no entra en el bloque, se reducen los espacios (mínimo 1)
+                            const maxEsp = Math.max(1, Math.floor((anchoDisp - w2 - w4) / anchoEsp));
+                            nEsp = Math.min(nEsp, maxEsp);
+
+                            doc.setFont("helvetica", esEncabezado ? "bold" : "normal");
+                            doc.setFontSize(tamPt);
+                            doc.text(t2 + " ".repeat(nEsp) + t4, xIni + (ini + 2) * anchoCol, y + altoFila * 0.74, { align: "center" });
+                        };
+
                         // La marca "-" activa las reglas de la fila pero no se muestra
                         dibujarCentrada(0, 1, limpiarTextoPdf(crudos[0].split(EXP_DIVISORIA_MARCA).join("")));
 
@@ -1054,8 +1092,7 @@ prueba 6       (MARGARITA.html) ; ;
                             if (conTexto.length === 1 && conTexto[0] === 0) {
                                 dibujarCentrada(ini, 4, valores[ini]);
                             } else if (conTexto.length === 2 && conTexto[0] === 0 && conTexto[1] === 2) {
-                                dibujarCentrada(ini, 2, valores[ini]);
-                                dibujarCentrada(ini + 2, 2, valores[ini + 2]);
+                                dibujarCadenaCentrada(ini, valores[ini], valores[ini + 2]);
                             } else {
                                 for (let k = 0; k < 4; k++) dibujarCentrada(ini + k, 1, valores[ini + k]);
                             }
