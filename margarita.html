@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 7       (MARGARITA.html) ; ;
+prueba 8       (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -705,7 +705,7 @@ prueba 7       (MARGARITA.html) ; ;
         //   filaNuevaTrasEncabezado: (solo .docx) inserta una fila en blanco entre el encabezado (Fila 1) y la actual Fila 2
         const EXP_OPCIONES = {
             grados:  { colInicio: 1,  texto: "IVaum",  prefijo: "ExportGRADOS",  prefijoPdf: "PDF_GRADOS" },
-            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES", divisorias: [5, 9, 13], filaNuevaTrasEncabezado: true }
+            acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES", divisorias: [1, 5, 9, 13, 17], filaNuevaTrasEncabezado: true }
         };
         const EXP_CANT_COLS = 17;             // cantidad de columnas del documento (todas de igual ancho)
         const EXP_PAGINA_ANCHO = 11906;       // A4 vertical, en twips (1 pt = 20 twips)
@@ -1098,7 +1098,7 @@ prueba 7       (MARGARITA.html) ; ;
                             }
                         }
 
-                        // Líneas divisorias (borde derecho de las columnas 5, 9 y 13): grosor intermedio, negro
+                        // Líneas divisorias (borde derecho de las columnas 1, 5, 9, 13 y 17): grosor intermedio, negro
                         doc.setLineWidth(PDF_DIVISORIA_GROSOR);
                         doc.setDrawColor(0, 0, 0);
                         for (const d of colsDivisoria) {
