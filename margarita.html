@@ -1,5 +1,5 @@
 tablaclaudep1.html ; ;
-prueba 2       (MARGARITA.html) ; ;
+prueba 3       (MARGARITA.html) ; ;
 
 28 reemplazado por 32 ; ;
 64 reemplazado por 50 ; ;
@@ -702,7 +702,7 @@ prueba 2       (MARGARITA.html) ; ;
         //   prefijoPdf: nombre del archivo .pdf (se le agrega _AAAA-MM-DD.pdf)
         //   divisorias: (.docx y .pdf) columnas del documento (1-17) cuyo borde derecho se destaca
         //               en las filas cuya Columna 1 contiene el carácter "-"
-        //   filaNuevaTrasEncabezado: (solo .docx) inserta una fila en blanco entre el encabezado (Fila 1) y la actual Fila 2
+        //   filaNuevaTrasEncabezado: (.docx y .pdf) inserta una fila en blanco entre el encabezado (Fila 1) y la actual Fila 2
         const EXP_OPCIONES = {
             grados:  { colInicio: 1,  texto: "IVaum",  prefijo: "ExportGRADOS",  prefijoPdf: "PDF_GRADOS" },
             acordes: { colInicio: 19, texto: "C# dim", prefijo: "ExportACORDES", prefijoPdf: "PDF_ACORDES", divisorias: [1, 5, 9, 13, 17], filaNuevaTrasEncabezado: true }
@@ -722,7 +722,13 @@ prueba 2       (MARGARITA.html) ; ;
         // se inserta un párrafo propio de ese tamaño antes de la tabla. Poner false para volver a no tener párrafo previo.
         const EXP_PARRAFO_MINIMO_INICIAL = true;
         const EXP_PARRAFO_MINIMO_XML = `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
-        const EXP_DIVISORIA_MARCA = "-";      // carácter que, presente en la Columna 1 de la fila, activa las divisorias
+        const EXP_DIVISORIA_MARCA = "-";      // carácter que, presente en la Columna 1 de la fila, activa el centrado y la combinación por bloques
+        // Líneas divisorias: se muestran solo si la Columna 1 del documento tiene contenido distinto de un único "-".
+        // Si la celda contiene únicamente "-" (o está vacía) la fila no lleva divisorias.
+        function filaMuestraDivisorias(valorColumna1) {
+            const t = String(valorColumna1 || "").trim();
+            return t !== "" && t !== EXP_DIVISORIA_MARCA;
+        }
         // Filas con "-" en la Columna 1: todo el contenido va centrado, y cada bloque de 4 celdas se combina así:
         //   solo celda 1 con contenido -> combina y centra sobre las 4 celdas
         //   solo celdas 1 y 3          -> combina y centra la 1 sobre las celdas 1-2 y la 3 sobre las celdas 3-4
@@ -928,12 +934,13 @@ prueba 2       (MARGARITA.html) ; ;
                     for (let c = 0; c < EXP_CANT_COLS; c++) valores.push((fila[iniIdx + c] || "").toString());
 
                     // La fila lleva divisorias solo si la Columna 1 del documento contiene el carácter "-"
-                    const filaConDivisorias = colsDivisoria.length > 0 && valores[0].indexOf(EXP_DIVISORIA_MARCA) !== -1;
+                    const filaCentrada = colsDivisoria.length > 0 && valores[0].indexOf(EXP_DIVISORIA_MARCA) !== -1;
+                    const filaConDivisorias = colsDivisoria.length > 0 && filaMuestraDivisorias(valores[0]);
                     const esDivisoria = (c) => filaConDivisorias && colsDivisoria.indexOf(c) !== -1;
 
                     let xml = `<w:tr><w:trPr><w:cantSplit/></w:trPr>`;
                     // Filas con "-" en la Columna 1: contenido centrado y combinación por bloques de 4 celdas
-                    if (filaConDivisorias) {
+                    if (filaCentrada) {
                         const celdaCentrada = (desde, span, texto) => {
                             const tcPr = `<w:tcPr><w:tcW w:w="${anchoCol * span}" w:type="dxa"/>`
                                 + (span > 1 ? `<w:gridSpan w:val="${span}"/>` : "")
@@ -961,7 +968,7 @@ prueba 2       (MARGARITA.html) ; ;
                         }
                     }
 
-                    let c = filaConDivisorias ? EXP_CANT_COLS : 0; // en filas con "-" las celdas ya se armaron arriba
+                    let c = filaCentrada ? EXP_CANT_COLS : 0; // en filas con "-" las celdas ya se armaron arriba
                     while (c < EXP_CANT_COLS) {
                         const val = valores[c];
                         if (val === "") { xml += celdaVacia(esEncabezado, esDivisoria(c)); c++; continue; }
@@ -1107,7 +1114,7 @@ prueba 2       (MARGARITA.html) ; ;
                     yPrimera: PDF_MARGEN,
                     yInicio: PDF_MARGEN,
                     yMax: yMax,
-                    filaExtraTrasEncabezado: false
+                    filaExtraTrasEncabezado: !!opcion.filaNuevaTrasEncabezado
                 });
                 let y = PDF_MARGEN;
 
@@ -1149,12 +1156,14 @@ prueba 2       (MARGARITA.html) ; ;
                     }
 
                     // La fila lleva divisorias solo si la Columna 1 del documento contiene el carácter "-"
-                    const filaConDivisorias = colsDivisoria.length > 0 && crudos[0].indexOf(EXP_DIVISORIA_MARCA) !== -1;
+                    const filaCentrada = colsDivisoria.length > 0 && crudos[0].indexOf(EXP_DIVISORIA_MARCA) !== -1;
+                    const filaConDivisorias = colsDivisoria.length > 0 && filaMuestraDivisorias(crudos[0]);
+                    const esDiv = (c) => filaConDivisorias && colsDivisoria.indexOf(c) !== -1;
 
                     // Línea inferior de la fila
                     doc.line(xIni, y + altoFila, xIni + anchoUtil, y + altoFila);
 
-                    if (filaConDivisorias) {
+                    if (filaCentrada) {
                         // Todo el contenido centrado; combinación por bloques de 4 celdas
                         const dibujarCentrada = (desde, span, texto) => {
                             if (texto === "") return;
@@ -1218,15 +1227,6 @@ prueba 2       (MARGARITA.html) ; ;
                                 for (let k = 0; k < 4; k++) dibujarCentrada(ini + k, 1, valores[ini + k]);
                             }
                         }
-
-                        // Líneas divisorias (borde derecho de las columnas 1, 5, 9, 13 y 17): grosor intermedio, negro
-                        doc.setLineWidth(PDF_DIVISORIA_GROSOR);
-                        doc.setDrawColor(0, 0, 0);
-                        for (const d of colsDivisoria) {
-                            const x = xIni + (d + 1) * anchoCol;
-                            doc.line(x, y, x, y + altoFila);
-                        }
-                        estiloLineaNormal();
                     } else {
                         let c = 0;
                         while (c < EXP_CANT_COLS) {
@@ -1235,7 +1235,7 @@ prueba 2       (MARGARITA.html) ; ;
 
                             // El texto desborda hacia la derecha sobre las celdas vecinas vacías
                             let span = 1;
-                            while (c + span < EXP_CANT_COLS && valores[c + span] === "") span++;
+                            while (c + span < EXP_CANT_COLS && valores[c + span] === "" && !esDiv(c + span - 1)) span++;
 
                             const anchoDisp = (anchoCol * span - PDF_PAD_IZQ - PDF_PAD_DER) * PDF_SEGURIDAD;
                             const texto = recortar(val, anchoDisp, esEncabezado);
@@ -1247,7 +1247,29 @@ prueba 2       (MARGARITA.html) ; ;
                         }
                     }
 
+                    // Líneas divisorias (borde derecho de las columnas 1, 5, 9, 13 y 17): grosor intermedio, negro
+                    if (filaConDivisorias) {
+                        doc.setLineWidth(PDF_DIVISORIA_GROSOR);
+                        doc.setDrawColor(0, 0, 0);
+                        for (const d of colsDivisoria) {
+                            const x = xIni + (d + 1) * anchoCol;
+                            doc.line(x, y, x, y + altoFila);
+                        }
+                        estiloLineaNormal();
+                    }
+
                     y += altoFila;
+
+                    // Fila nueva (en blanco) debajo del encabezado: pasa a ser la Fila 2 del documento
+                    if (itemFila.encabezado && opcion.filaNuevaTrasEncabezado) {
+                        if (y + altoFila > yMax) {
+                            doc.addPage();
+                            y = PDF_MARGEN;
+                            estiloLineaNormal();
+                        }
+                        doc.line(xIni, y + altoFila, xIni + anchoUtil, y + altoFila);
+                        y += altoFila;
+                    }
                 }
 
                 const hoy = new Date();
